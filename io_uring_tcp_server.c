@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
     const int val = 1;
     setsockopt(sock_listen_fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(portno);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
@@ -37,6 +37,7 @@ int main(int argc, char *argv[]) {
         perror("Error listening\n");
         exit(-1);
     }
+    printf("listening for connections on port: %d\n", portno);
 
 
     // initialize io_uring
@@ -52,16 +53,12 @@ int main(int argc, char *argv[]) {
 
     // if incoming data then check if it is a new connection (listen_fd == the_fd_that_was_in_the_cqe)
 
-
-    printf("portno: %d\n", portno);
-    printf("listen_fd: %d\n", sock_listen_fd);
-
     const int LISTEN = 0, ECHO_RECV = 1, ECHO_SEND = 2, ECHO = 3;
     struct io_uring_cqe *cqe;
     
+
     while (1)
     {
-        
         int ret = io_uring_wait_cqe(&ring, &cqe);
 
         if (ret != 0)
