@@ -140,23 +140,37 @@ int main(int argc, char *argv[]) {
         }
         else if (type == READ)
         {
-            // prep send to socket
-            printf("amount of bytes received: %d\n", cqe->res);
-            io_uring_cqe_seen(&ring, cqe);
-            sqe = io_uring_get_sqe(&ring);
-            int fd = user_data->fd;
-            io_uring_prep_writev(sqe, fd, &iov, 1, 0);
-            struct connection_info conn_i = {
-                .fd = fd,
-                .type = WRITE};
-            io_uring_sqe_set_data(sqe, &conn_i);
-            io_uring_submit(&ring);
+            if (cqe->res == 0) {
+                printf("closing socket..");
+                shutdown(user_data->fd, 2);
+                io_uring_cqe_seen(&ring, cqe);
+            } else {
+                // prep send to socket
+                printf("amount of bytes received: %d\n", cqe->res);
+                io_uring_cqe_seen(&ring, cqe);
+                sqe = io_uring_get_sqe(&ring);
+                int fd = user_data->fd;
+                io_uring_prep_writev(sqe, fd, &iov, 1, 0);
+                struct connection_info conn_i = {
+                    .fd = fd,
+                    .type = WRITE};
+                io_uring_sqe_set_data(sqe, &conn_i);
+                io_uring_submit(&ring);
+            }
         }
         else if (type == WRITE)
         {
             // read from socket completed
             io_uring_cqe_seen(&ring, cqe);
-            shutdown(user_data->fd, 2);
+            int fd = user_data->fd;
+            
+            sqe_conn = io_uring_get_sqe(&ring);
+            io_uring_prep_poll_add(sqe_conn, fd, POLLIN);
+            struct connection_info conn_i_conn = {
+                .fd = fd,
+                .type = POLL_NEW_CONNECTION};
+            io_uring_sqe_set_data(sqe_conn, &conn_i_conn);
+            io_uring_submit(&ring);
             memset(buf, 0, sizeof(buf));
         }
     }
