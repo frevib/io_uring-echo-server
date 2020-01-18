@@ -87,18 +87,14 @@ int main(int argc, char *argv[]) {
 
     // tell kernel we have put a sqe on the submission ring
     io_uring_submit(&ring);
-    
 
-    // if incoming data then check if it is a new connection (listen_fd == the_fd_that_was_in_the_cqe)
-    
-    // struct io_uring_sqe *sqe_conn;
     int type;
     
     while (1)
     {
         struct io_uring_cqe *cqe;
 
-        // wait for new sqe to become available
+        // wait for new cqe to become available
         int ret = io_uring_wait_cqe(&ring, &cqe);
         if (ret != 0)
         {
@@ -126,7 +122,6 @@ int main(int argc, char *argv[]) {
         }
         else if (type == POLL_NEW_CONNECTION)
         {
-            // printf("new data on socket: %d\n", user_data->fd);
             io_uring_cqe_seen(&ring, cqe);
             add_socket_read(&ring, user_data->fd, iovecs, READ);
         }
@@ -137,14 +132,14 @@ int main(int argc, char *argv[]) {
                 shutdown(user_data->fd, 2);
                 io_uring_cqe_seen(&ring, cqe);
             } else {
-                // prep send to socket
+                // write to socket sqe
                 io_uring_cqe_seen(&ring, cqe);
                 add_socket_write(&ring, user_data->fd, iovecs, WRITE);
             }
         }
         else if (type == WRITE)
         {
-            // read from socket completed
+            // read from socket completed, re-add poll sqe
             io_uring_cqe_seen(&ring, cqe);            
             add_poll(&ring, user_data->fd, POLL_NEW_CONNECTION);
         }
