@@ -1,6 +1,6 @@
-# io_uring event loop
+# io_uring bare minimum echo server
 
-* bare minimum event loop for the purpose of learning io_uring
+* event loop created with io_uring for the purpose of learning io_uring
 * uses liburing 0.3
 * Linux 5.4 needed, lower versions don't return the right amount of bytes read from `io_uring_prep_readv` in cqe->res.
 
@@ -28,7 +28,6 @@ Responses: 3158230
 ```
 
 ```
-
 Benchmarking: 172.16.166.152:5555
 50 clients, running 512 bytes, 30 sec.
 
