@@ -10,26 +10,39 @@
 #include <sys/socket.h>
 #include <sys/poll.h>
 
-struct connection_info
+#define MAX_CONNECTIONS 1024
+
+void add_poll(struct io_uring* ring, int fd, int type);
+void add_socket_read(struct io_uring* ring, int fd, struct iovec* iovecs, int type);
+void add_socket_write(struct io_uring* ring, int fd, struct iovec* iovecs, int type);
+
+int POLL_LISTEN = 0, POLL_NEW_CONNECTION = 1, READ = 2, WRITE = 3;
+
+typedef struct conn_info
 {
     int fd;
     int type;
-};
-const int POLL_LISTEN = 0, POLL_NEW_CONNECTION = 1, READ = 2, WRITE = 3;
+} conn_info;
+conn_info conns[MAX_CONNECTIONS];
 
 int main(int argc, char *argv[]) {
-    // some need variables
+
+    // some variables we need
     int portno = strtol(argv[1], NULL, 10);
     struct sockaddr_in serv_addr, client_addr;
     int client_len = sizeof(client_addr);
 
-    
-    // initialize iovec
-    struct iovec iov;
-    char buf[1024];
-    memset(buf, 0, sizeof(buf));
-    iov.iov_base = buf;
-    iov.iov_len = sizeof(buf);
+
+    // create connection_info structs
+    struct iovec iovecs[1024];
+    char bufs[1024][1024];
+
+    for (int i = 0; i < MAX_CONNECTIONS - 1; i++) {
+        memset(&iovecs[i], 0, sizeof(iovecs[i]));
+        memset(&bufs[i], 0, sizeof(bufs[i]));
+        iovecs[i].iov_base = bufs[i];
+        iovecs[i].iov_len = sizeof(bufs[i]);
+    }
 
 
     // setup socket
@@ -62,14 +75,14 @@ int main(int argc, char *argv[]) {
 
 
     // add first io_uring sqe, check when there will be data available on sock_listen_fd
-    struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
-    io_uring_prep_poll_add(sqe, sock_listen_fd, POLLIN);
-    struct connection_info conn_i = 
+    struct io_uring_sqe *sqe_init = io_uring_get_sqe(&ring);
+    io_uring_prep_poll_add(sqe_init, sock_listen_fd, POLLIN);
+    conn_info conn_i = 
     {
         .fd = sock_listen_fd, 
         .type = POLL_LISTEN
     };
-    io_uring_sqe_set_data(sqe, &conn_i);
+    io_uring_sqe_set_data(sqe_init, &conn_i);
 
 
     // tell kernel we have put a sqe on the submission ring
@@ -77,12 +90,14 @@ int main(int argc, char *argv[]) {
     
 
     // if incoming data then check if it is a new connection (listen_fd == the_fd_that_was_in_the_cqe)
-    struct io_uring_cqe *cqe;
-    struct io_uring_sqe *sqe_conn;
+    
+    // struct io_uring_sqe *sqe_conn;
     int type;
     
     while (1)
     {
+        struct io_uring_cqe *cqe;
+
         // wait for new sqe to become available
         int ret = io_uring_wait_cqe(&ring, &cqe);
         if (ret != 0)
@@ -91,88 +106,87 @@ int main(int argc, char *argv[]) {
             exit(-1);
         }
 
-        struct connection_info *user_data = (struct connection_info *)cqe->user_data;
+        struct conn_info *user_data = (struct conn_info *)io_uring_cqe_get_data(cqe);
         type = user_data->type;
 
         if (type == POLL_LISTEN)
         {
-            printf("new connection, res: %d\n", cqe->res);
+            printf("new connection, ceq->res: %d\n", cqe->res);
             io_uring_cqe_seen(&ring, cqe);
 
             // io_uring_prep_accept(sqe, sock_listen_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_len, 0);
             // while loop until all connections are emptied using accept
-            int sock_conn_fd =
-                accept4(sock_listen_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_len, SOCK_NONBLOCK);
-            if (sock_conn_fd == -1)
-            {
-                perror("Accept socket error\n");
+            int sock_conn_fd;
+            while ((sock_conn_fd = accept4(sock_listen_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_len, SOCK_NONBLOCK)) != -1) {
+                add_poll(&ring, sock_conn_fd, POLL_NEW_CONNECTION);
             }
-
-            sqe = io_uring_get_sqe(&ring);
-            io_uring_prep_poll_add(sqe, sock_listen_fd, POLLIN);
-            struct connection_info conn_i_listen = {
-                .fd = sock_listen_fd,
-                .type = POLL_LISTEN};
-            io_uring_sqe_set_data(sqe, &conn_i_listen);
-
-            // add poll sqe for newly connected socket
-            sqe_conn = io_uring_get_sqe(&ring);
-            io_uring_prep_poll_add(sqe_conn, sock_conn_fd, POLLIN);
-            struct connection_info conn_i_conn = {
-                .fd = sock_conn_fd,
-                .type = POLL_NEW_CONNECTION};
-            io_uring_sqe_set_data(sqe_conn, &conn_i_conn);
-            io_uring_submit(&ring);
+            
+            // re-add poll sqe for listing socket and add new poll for newly connected socket
+            add_poll(&ring, sock_listen_fd, POLL_LISTEN);
         }
         else if (type == POLL_NEW_CONNECTION)
         {
-            printf("new data on socket: %d\n", user_data->fd);
+            // printf("new data on socket: %d\n", user_data->fd);
             io_uring_cqe_seen(&ring, cqe);
-
-            sqe = io_uring_get_sqe(&ring);
-            int fd = user_data->fd;
-            io_uring_prep_readv(sqe, fd, &iov, 1, 0);
-            struct connection_info conn_i = {
-                .fd = fd,
-                .type = READ};
-            io_uring_sqe_set_data(sqe, &conn_i);
-            io_uring_submit(&ring);
+            add_socket_read(&ring, user_data->fd, iovecs, READ);
         }
         else if (type == READ)
         {
             if (cqe->res == 0) {
-                printf("closing socket..");
+                printf("closing socket..\n");
                 shutdown(user_data->fd, 2);
                 io_uring_cqe_seen(&ring, cqe);
             } else {
                 // prep send to socket
-                printf("amount of bytes received: %d\n", cqe->res);
                 io_uring_cqe_seen(&ring, cqe);
-                sqe = io_uring_get_sqe(&ring);
-                int fd = user_data->fd;
-                io_uring_prep_writev(sqe, fd, &iov, 1, 0);
-                struct connection_info conn_i = {
-                    .fd = fd,
-                    .type = WRITE};
-                io_uring_sqe_set_data(sqe, &conn_i);
-                io_uring_submit(&ring);
+                add_socket_write(&ring, user_data->fd, iovecs, WRITE);
             }
         }
         else if (type == WRITE)
         {
             // read from socket completed
-            io_uring_cqe_seen(&ring, cqe);
-            int fd = user_data->fd;
-            
-            sqe_conn = io_uring_get_sqe(&ring);
-            io_uring_prep_poll_add(sqe_conn, fd, POLLIN);
-            struct connection_info conn_i_conn = {
-                .fd = fd,
-                .type = POLL_NEW_CONNECTION};
-            io_uring_sqe_set_data(sqe_conn, &conn_i_conn);
-            io_uring_submit(&ring);
-            memset(buf, 0, sizeof(buf));
+            io_uring_cqe_seen(&ring, cqe);            
+            add_poll(&ring, user_data->fd, POLL_NEW_CONNECTION);
         }
+
+        io_uring_submit(&ring);
     }
   
+}
+
+void add_poll(struct io_uring* ring, int fd, int type) {
+
+    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+    io_uring_prep_poll_add(sqe, fd, POLLIN);
+
+    conn_info *conn_i_conn = calloc(1, sizeof(conn_info));
+    conn_i_conn->fd = fd;
+    conn_i_conn->type = type;
+
+    io_uring_sqe_set_data(sqe, conn_i_conn);
+}
+
+
+void add_socket_read(struct io_uring* ring, int fd, struct iovec* iovecs, int type) {
+
+    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+    io_uring_prep_readv(sqe, fd, &iovecs[fd], 1, 0);
+
+    conn_info *conn_i = calloc(1, sizeof(conn_info));
+    conn_i->fd = fd;
+    conn_i->type = type;
+
+    io_uring_sqe_set_data(sqe, conn_i);
+}
+
+void add_socket_write(struct io_uring* ring, int fd, struct iovec* iovecs, int type) {
+
+    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+    io_uring_prep_writev(sqe, fd, &iovecs[fd], 1, 0);
+
+    conn_info *conn_i = calloc(1, sizeof(conn_info));
+    conn_i->fd = fd;
+    conn_i->type = type;
+
+    io_uring_sqe_set_data(sqe, conn_i);
 }
