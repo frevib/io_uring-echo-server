@@ -8,3 +8,21 @@
 `make`
 
 `./io_uring_tcp_serer [port_number]`
+
+
+## Benchmarks
+* VMWare Ubuntu 18.04
+* Linux 5.4.12
+* 4 virtual cores
+* Macbook pro i7 2,6ghz/32GB
+
+with `rust_echo_bench`: https://github.com/haraldh/rust_echo_bench
+
+```
+Benchmarking: 172.16.166.152:5555
+40 clients, running 512 bytes, 30 sec.
+
+Speed: 105274 request/sec, 105274 response/sec
+Requests: 3158231
+Responses: 3158230
+```
