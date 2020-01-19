@@ -11,6 +11,7 @@
 #include <sys/poll.h>
 
 #define MAX_CONNECTIONS 1024
+#define BACKLOG 128
 
 void add_poll(struct io_uring* ring, int fd, int type);
 void add_socket_read(struct io_uring* ring, int fd, struct iovec* iovecs, int type);
@@ -27,10 +28,15 @@ conn_info conns[MAX_CONNECTIONS];
 
 int main(int argc, char *argv[]) {
 
+    if (argc < 2) {
+        printf("Please give a port number: ./io_uring_echo_server [port]\n");
+        exit(0);
+    } 
+
     // some variables we need
     int portno = strtol(argv[1], NULL, 10);
     struct sockaddr_in serv_addr, client_addr;
-    int client_len = sizeof(client_addr);
+    socklen_t client_len = sizeof(client_addr);
 
 
     // create connection_info structs
@@ -56,17 +62,17 @@ int main(int argc, char *argv[]) {
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
 
-    // bind socket and listen for connections
+    
     if (bind(sock_listen_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
-        perror("Error binding socket\n");
+        perror("Error binding socket..\n");
         exit(-1);
     }
-	if (listen(sock_listen_fd, 128) < 0) {
-        perror("Error listening\n");
+	if (listen(sock_listen_fd, BACKLOG) < 0) {
+        perror("Error listening..\n");
         exit(-1);
     }
-    printf("listening for connections on port: %d\n", portno);
+    printf("io_uring echo server listening for connections on port: %d\n", portno);
 
 
     // initialize io_uring
@@ -107,7 +113,6 @@ int main(int argc, char *argv[]) {
 
         if (type == POLL_LISTEN)
         {
-            printf("new connection, ceq->res: %d\n", cqe->res);
             io_uring_cqe_seen(&ring, cqe);
 
             // io_uring_prep_accept(sqe, sock_listen_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_len, 0);
