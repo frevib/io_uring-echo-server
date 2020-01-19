@@ -22,26 +22,6 @@ command: `cargo run --release -- --address "localhost:6666" --number 50 --durati
 
 
 ```
-Benchmarking: 172.16.166.152:5555
-40 clients, running 512 bytes, 30 sec.
-
-Speed: 105274 request/sec, 105274 response/sec
-Requests: 3158231
-Responses: 3158230
-```
-
-```
-Benchmarking: 172.16.166.152:5555
-50 clients, running 512 bytes, 30 sec.
-
-Speed: 124181 request/sec, 124181 response/sec
-Requests: 3725449
-Responses: 3725443
-```
-
-On localhost:
-
-```
 Benchmarking: localhost:5555
 50 clients, running 512 bytes, 60 sec.
 
