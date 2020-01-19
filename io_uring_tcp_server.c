@@ -129,6 +129,7 @@ int main(int argc, char *argv[]) {
         {
             io_uring_cqe_seen(&ring, cqe);
             add_socket_read(&ring, user_data->fd, iovecs, READ);
+            free(cqe->user_data);
         }
         else if (type == READ)
         {
@@ -138,7 +139,9 @@ int main(int argc, char *argv[]) {
             } else {
                 // write to socket sqe
                 io_uring_cqe_seen(&ring, cqe);
+                
                 add_socket_write(&ring, user_data->fd, iovecs, WRITE);
+                free(cqe->user_data);
             }
         }
         else if (type == WRITE)
@@ -146,6 +149,7 @@ int main(int argc, char *argv[]) {
             // read from socket completed, re-add poll sqe
             io_uring_cqe_seen(&ring, cqe);            
             add_poll(&ring, user_data->fd, POLL_NEW_CONNECTION);
+            free(cqe->user_data);
         }
 
         io_uring_submit(&ring);
