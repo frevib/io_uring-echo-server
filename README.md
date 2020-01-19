@@ -18,7 +18,7 @@
 
 with `rust_echo_bench`: https://github.com/haraldh/rust_echo_bench
 
-command: `cargo run --release -- --address "localhost:6666" --number 50 --duration 30 --length 512`
+command: `cargo run --release -- --address "localhost:6666" --number 50 --duration 60 --length 512`
 
 
 ```
