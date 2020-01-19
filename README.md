@@ -18,6 +18,9 @@
 
 with `rust_echo_bench`: https://github.com/haraldh/rust_echo_bench
 
+command: `cargo run --release -- --address "localhost:6666" --number 50 --duration 30 --length 512`
+
+
 ```
 Benchmarking: 172.16.166.152:5555
 40 clients, running 512 bytes, 30 sec.

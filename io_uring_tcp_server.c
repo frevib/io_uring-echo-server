@@ -133,7 +133,6 @@ int main(int argc, char *argv[]) {
         else if (type == READ)
         {
             if (cqe->res == 0) {
-                printf("closing socket..\n");
                 shutdown(user_data->fd, 2);
                 io_uring_cqe_seen(&ring, cqe);
             } else {
