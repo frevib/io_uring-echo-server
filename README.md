@@ -7,7 +7,7 @@
 ## install and run
 `make`
 
-`./io_uring_tcp_serer [port_number]`
+`./io_uring_echo_server [port_number]`
 
 
 ## Benchmarks
@@ -25,7 +25,7 @@ command: `cargo run --release -- --address "localhost:6666" --number 50 --durati
 Benchmarking: localhost:5555
 50 clients, running 512 bytes, 60 sec.
 
-Speed: 368368 request/sec, 368368 response/sec
-Requests: 22102112
-Responses: 22102110
+Speed: 393597 request/sec, 393597 response/sec
+Requests: 23615846
+Responses: 23615846
 ```
