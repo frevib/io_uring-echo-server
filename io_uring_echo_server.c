@@ -61,8 +61,8 @@ int main(int argc, char *argv[]) {
     serv_addr.sin_port = htons(portno);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
-
     
+    // bind and listen
     if (bind(sock_listen_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
         perror("Error binding socket..\n");
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
     io_uring_queue_init(32, &ring, 0);
 
 
-    // add first io_uring sqe, check when there will be data available on sock_listen_fd
+    // add first io_uring poll sqe, to check when there will be data available on sock_listen_fd
     struct io_uring_sqe *sqe_init = io_uring_get_sqe(&ring);
     io_uring_prep_poll_add(sqe_init, sock_listen_fd, POLLIN);
     conn_info conn_i = 
@@ -94,7 +94,6 @@ int main(int argc, char *argv[]) {
     // tell kernel we have put a sqe on the submission ring
     io_uring_submit(&ring);
 
-    int type;
     
     while (1)
     {
@@ -109,7 +108,7 @@ int main(int argc, char *argv[]) {
         }
 
         struct conn_info *user_data = (struct conn_info *)io_uring_cqe_get_data(cqe);
-        type = user_data->type;
+        int type = user_data->type;
 
         if (type == POLL_LISTEN)
         {
@@ -128,6 +127,7 @@ int main(int argc, char *argv[]) {
         }
         else if (type == POLL_NEW_CONNECTION)
         {
+            // bytes available on connected socket, add read sqe
             io_uring_cqe_seen(&ring, cqe);
             add_socket_read(&ring, user_data->fd, iovecs, READ);
             free(user_data);
@@ -135,11 +135,12 @@ int main(int argc, char *argv[]) {
         else if (type == READ)
         {
             if (cqe->res == 0) {
+                // no bytes available on socket, client must be disconnected
                 shutdown(user_data->fd, 2);
                 io_uring_cqe_seen(&ring, cqe);
                 free(user_data);
             } else {
-                // write to socket sqe
+                // add write to socket sqe
                 io_uring_cqe_seen(&ring, cqe);
                 add_socket_write(&ring, user_data->fd, iovecs, WRITE);
                 free(user_data);
@@ -147,7 +148,7 @@ int main(int argc, char *argv[]) {
         }
         else if (type == WRITE)
         {
-            // read from socket completed, re-add poll sqe
+            // write to socket completed, re-add poll sqe
             io_uring_cqe_seen(&ring, cqe);            
             add_poll(&ring, user_data->fd, POLL_NEW_CONNECTION);
             free(user_data);
