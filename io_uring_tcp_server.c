@@ -119,29 +119,30 @@ int main(int argc, char *argv[]) {
             // while loop until all connections are emptied using accept
             int sock_conn_fd;
             while ((sock_conn_fd = accept4(sock_listen_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_len, SOCK_NONBLOCK)) != -1) {
+                //  add new poll for newly connected socket
                 add_poll(&ring, sock_conn_fd, POLL_NEW_CONNECTION);
             }
             
-            // re-add poll sqe for listing socket and add new poll for newly connected socket
+            // re-add poll sqe for listing socket
             add_poll(&ring, sock_listen_fd, POLL_LISTEN);
         }
         else if (type == POLL_NEW_CONNECTION)
         {
             io_uring_cqe_seen(&ring, cqe);
             add_socket_read(&ring, user_data->fd, iovecs, READ);
-            free(cqe->user_data);
+            free(user_data);
         }
         else if (type == READ)
         {
             if (cqe->res == 0) {
                 shutdown(user_data->fd, 2);
                 io_uring_cqe_seen(&ring, cqe);
+                free(user_data);
             } else {
                 // write to socket sqe
                 io_uring_cqe_seen(&ring, cqe);
-                
                 add_socket_write(&ring, user_data->fd, iovecs, WRITE);
-                free(cqe->user_data);
+                free(user_data);
             }
         }
         else if (type == WRITE)
@@ -149,7 +150,7 @@ int main(int argc, char *argv[]) {
             // read from socket completed, re-add poll sqe
             io_uring_cqe_seen(&ring, cqe);            
             add_poll(&ring, user_data->fd, POLL_NEW_CONNECTION);
-            free(cqe->user_data);
+            free(user_data);
         }
 
         io_uring_submit(&ring);
@@ -162,11 +163,11 @@ void add_poll(struct io_uring* ring, int fd, int type) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     io_uring_prep_poll_add(sqe, fd, POLLIN);
 
-    conn_info *conn_i_conn = calloc(1, sizeof(conn_info));
-    conn_i_conn->fd = fd;
-    conn_i_conn->type = type;
+    conn_info *conn_i = calloc(1, sizeof(conn_info));
+    conn_i->fd = fd;
+    conn_i->type = type;
 
-    io_uring_sqe_set_data(sqe, conn_i_conn);
+    io_uring_sqe_set_data(sqe, conn_i);
 }
 
 
