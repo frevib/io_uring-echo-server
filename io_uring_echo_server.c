@@ -12,6 +12,7 @@
 
 #define MAX_CONNECTIONS 1024
 #define BACKLOG 128
+#define MAX_MESSAGE_LEN 1024
 
 void add_poll(struct io_uring* ring, int fd, int type);
 void add_socket_read(struct io_uring* ring, int fd, struct iovec* iovecs, int type);
@@ -24,7 +25,10 @@ typedef struct conn_info
     int fd;
     int type;
 } conn_info;
+
 conn_info conns[MAX_CONNECTIONS];
+struct iovec iovecs[MAX_CONNECTIONS];
+char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
 
 int main(int argc, char *argv[]) {
 
@@ -39,15 +43,13 @@ int main(int argc, char *argv[]) {
     socklen_t client_len = sizeof(client_addr);
 
 
-    // create connection_info structs
-    struct iovec iovecs[1024];
-    char bufs[1024][1024];
-
+    // create conn_info structs
     for (int i = 0; i < MAX_CONNECTIONS - 1; i++) {
         memset(&iovecs[i], 0, sizeof(iovecs[i]));
         memset(&bufs[i], 0, sizeof(bufs[i]));
         iovecs[i].iov_base = bufs[i];
         iovecs[i].iov_len = sizeof(bufs[i]);
+        memset(&conns[i], 0, sizeof(conns[i]));
     }
 
 
@@ -66,11 +68,11 @@ int main(int argc, char *argv[]) {
     if (bind(sock_listen_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
         perror("Error binding socket..\n");
-        exit(-1);
+        exit(1);
     }
 	if (listen(sock_listen_fd, BACKLOG) < 0) {
         perror("Error listening..\n");
-        exit(-1);
+        exit(1);
     }
     printf("io_uring echo server listening for connections on port: %d\n", portno);
 
@@ -104,7 +106,7 @@ int main(int argc, char *argv[]) {
         if (ret != 0)
         {
             perror("Error io_uring_wait_cqe\n");
-            exit(-1);
+            exit(1);
         }
 
         struct conn_info *user_data = (struct conn_info *)io_uring_cqe_get_data(cqe);
@@ -130,7 +132,6 @@ int main(int argc, char *argv[]) {
             // bytes available on connected socket, add read sqe
             io_uring_cqe_seen(&ring, cqe);
             add_socket_read(&ring, user_data->fd, iovecs, READ);
-            free(user_data);
         }
         else if (type == READ)
         {
@@ -138,12 +139,10 @@ int main(int argc, char *argv[]) {
                 // no bytes available on socket, client must be disconnected
                 shutdown(user_data->fd, 2);
                 io_uring_cqe_seen(&ring, cqe);
-                free(user_data);
             } else {
                 // add write to socket sqe
                 io_uring_cqe_seen(&ring, cqe);
                 add_socket_write(&ring, user_data->fd, iovecs, WRITE);
-                free(user_data);
             }
         }
         else if (type == WRITE)
@@ -151,7 +150,6 @@ int main(int argc, char *argv[]) {
             // write to socket completed, re-add poll sqe
             io_uring_cqe_seen(&ring, cqe);            
             add_poll(&ring, user_data->fd, POLL_NEW_CONNECTION);
-            free(user_data);
         }
 
         io_uring_submit(&ring);
@@ -164,7 +162,7 @@ void add_poll(struct io_uring* ring, int fd, int type) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     io_uring_prep_poll_add(sqe, fd, POLLIN);
 
-    conn_info *conn_i = calloc(1, sizeof(conn_info));
+    conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
     conn_i->type = type;
 
@@ -177,7 +175,7 @@ void add_socket_read(struct io_uring* ring, int fd, struct iovec* iovecs, int ty
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     io_uring_prep_readv(sqe, fd, &iovecs[fd], 1, 0);
 
-    conn_info *conn_i = calloc(1, sizeof(conn_info));
+    conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
     conn_i->type = type;
 
@@ -189,7 +187,7 @@ void add_socket_write(struct io_uring* ring, int fd, struct iovec* iovecs, int t
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     io_uring_prep_writev(sqe, fd, &iovecs[fd], 1, 0);
 
-    conn_info *conn_i = calloc(1, sizeof(conn_info));
+    conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
     conn_i->type = type;
 
