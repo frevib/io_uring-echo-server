@@ -11,12 +11,6 @@
 ## compare with epoll echo server
 https://github.com/frevib/epoll-echo-server
 
-Benchmarking: localhost:5555
-50 clients, running 512 bytes, 60 sec.
-
-Speed: 435647 request/sec, 435647 response/sec
-Requests: 26138860
-Responses: 26138859
 
 ## Benchmarks
 * VMWare Ubuntu 18.04
@@ -33,9 +27,9 @@ command: `cargo run --release -- --address "localhost:6666" --number 50 --durati
 Benchmarking: localhost:5555
 50 clients, running 512 bytes, 60 sec.
 
-Speed: 393597 request/sec, 393597 response/sec
-Requests: 23615846
-Responses: 23615846
+Speed: 435647 request/sec, 435647 response/sec
+Requests: 26138860
+Responses: 26138859
 ```
 
 ## Versions
