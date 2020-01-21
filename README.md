@@ -2,7 +2,7 @@
 
 * uses an event loop created with io_uring
 * uses liburing 0.3
-* Linux 5.4 needed, lower versions don't return the right amount of bytes read from `io_uring_prep_readv` in cqe->res.
+* Linux 5.4 or higer needed. (Lower versions don't return the right amount of bytes read from `io_uring_prep_readv` in `cqe->res`).
 
 ## install and run
 `make`
