@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
             // while loop until all connections are emptied using accept
             int sock_conn_fd;
             while ((sock_conn_fd = accept4(sock_listen_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_len, SOCK_NONBLOCK)) != -1) {
-                //  add new poll for newly connected socket
+                //  add poll sqe for newly connected socket
                 add_poll(&ring, sock_conn_fd, POLL_NEW_CONNECTION);
             }
             
@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
                 shutdown(user_data->fd, 2);
                 io_uring_cqe_seen(&ring, cqe);
             } else {
-                // add write to socket sqe
+                // bytes have bean read into iovec, add write to socket sqe
                 io_uring_cqe_seen(&ring, cqe);
                 add_socket_write(&ring, user_data->fd, iovecs, WRITE);
             }
