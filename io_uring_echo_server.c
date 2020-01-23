@@ -30,9 +30,11 @@ conn_info conns[MAX_CONNECTIONS];
 struct iovec iovecs[MAX_CONNECTIONS];
 char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) 
+{
 
-    if (argc < 2) {
+    if (argc < 2) 
+    {
         printf("Please give a port number: ./io_uring_echo_server [port]\n");
         exit(0);
     } 
@@ -44,7 +46,8 @@ int main(int argc, char *argv[]) {
 
 
     // create conn_info structs
-    for (int i = 0; i < MAX_CONNECTIONS - 1; i++) {
+    for (int i = 0; i < MAX_CONNECTIONS - 1; i++) 
+    {
         memset(&iovecs[i], 0, sizeof(iovecs[i]));
         memset(&bufs[i], 0, sizeof(bufs[i]));
         iovecs[i].iov_base = bufs[i];
