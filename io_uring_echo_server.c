@@ -70,7 +70,8 @@ int main(int argc, char *argv[]) {
         perror("Error binding socket..\n");
         exit(1);
     }
-	if (listen(sock_listen_fd, BACKLOG) < 0) {
+    if (listen(sock_listen_fd, BACKLOG) < 0) 
+    {
         perror("Error listening..\n");
         exit(1);
     }
@@ -135,12 +136,15 @@ int main(int argc, char *argv[]) {
         }
         else if (type == READ)
         {
-            if (cqe->res == 0) {
+            if (cqe->res == 0) 
+            {
                 // no bytes available on socket, client must be disconnected
-                shutdown(user_data->fd, 2);
                 io_uring_cqe_seen(&ring, cqe);
-            } else {
-                // bytes have bean read into iovec, add write to socket sqe
+                shutdown(user_data->fd, 2);   
+            } 
+            else 
+            {
+                // bytes have been read into iovec, add write to socket sqe
                 io_uring_cqe_seen(&ring, cqe);
                 add_socket_write(&ring, user_data->fd, iovecs, WRITE);
             }
