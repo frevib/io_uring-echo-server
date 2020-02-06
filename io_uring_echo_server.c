@@ -33,6 +33,7 @@ typedef struct conn_info
 
 conn_info conns[MAX_CONNECTIONS];
 struct iovec iovecs[MAX_CONNECTIONS];
+struct msghdr msgs[MAX_CONNECTIONS];
 char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
 
 int main(int argc, char *argv[])
@@ -55,6 +56,8 @@ int main(int argc, char *argv[])
     {
         // global variables are initialized to zero by default
         iovecs[i].iov_base = bufs[i];
+        msgs[i].msg_iov = &iovecs[i];
+        msgs[i].msg_iovlen = 1;
     }
 
 
@@ -85,7 +88,7 @@ int main(int argc, char *argv[])
 
     // initialize io_uring
     struct io_uring ring;
-    io_uring_queue_init(32, &ring, 0);
+    io_uring_queue_init(MAX_CONNECTIONS, &ring, 0);
 
 
     // add first io_uring poll sqe, to check when there will be data available on sock_listen_fd
@@ -183,7 +186,7 @@ void add_socket_read(struct io_uring* ring, int fd, size_t size, int type) {
 
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     iovecs[fd].iov_len = size;
-    io_uring_prep_readv(sqe, fd, &iovecs[fd], 1, 0);
+    io_uring_prep_recvmsg(sqe, fd, &msgs[fd], MSG_NOSIGNAL);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
@@ -196,7 +199,7 @@ void add_socket_write(struct io_uring* ring, int fd, size_t size, int type) {
 
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     iovecs[fd].iov_len = size;
-    io_uring_prep_writev(sqe, fd, &iovecs[fd], 1, 0);
+    io_uring_prep_sendmsg(sqe, fd, &msgs[fd], MSG_NOSIGNAL);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
