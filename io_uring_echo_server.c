@@ -12,7 +12,7 @@
 
 #define MAX_CONNECTIONS 1024
 #define BACKLOG 128
-#define MAX_MESSAGE_LEN 1024
+#define MAX_MESSAGE_LEN 2048
 
 void add_poll(struct io_uring* ring, int fd, int type);
 void add_socket_read(struct io_uring* ring, int fd, size_t size, int type);
@@ -186,7 +186,7 @@ void add_socket_read(struct io_uring* ring, int fd, size_t size, int type) {
 
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     iovecs[fd].iov_len = size;
-    io_uring_prep_recvmsg(sqe, fd, &msgs[fd], MSG_NOSIGNAL);
+    io_uring_prep_readv(sqe, fd, &iovecs[fd], 1, 0);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
@@ -198,8 +198,11 @@ void add_socket_read(struct io_uring* ring, int fd, size_t size, int type) {
 void add_socket_write(struct io_uring* ring, int fd, size_t size, int type) {
 
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-    iovecs[fd].iov_len = size;
-    io_uring_prep_sendmsg(sqe, fd, &msgs[fd], MSG_NOSIGNAL);
+
+    // enabling line below causes a big performance drop
+    // iovecs[fd].iov_len = size;
+
+    io_uring_prep_writev(sqe, fd, &iovecs[fd], 1, 0);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
