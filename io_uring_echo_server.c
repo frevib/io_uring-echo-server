@@ -15,10 +15,15 @@
 #define MAX_MESSAGE_LEN 1024
 
 void add_poll(struct io_uring* ring, int fd, int type);
-void add_socket_read(struct io_uring* ring, int fd, struct iovec* iovecs, int type);
-void add_socket_write(struct io_uring* ring, int fd, struct iovec* iovecs, int type);
+void add_socket_read(struct io_uring* ring, int fd, size_t size, int type);
+void add_socket_write(struct io_uring* ring, int fd, size_t size, int type);
 
-int POLL_LISTEN = 0, POLL_NEW_CONNECTION = 1, READ = 2, WRITE = 3;
+enum {
+    POLL_LISTEN,
+    POLL_NEW_CONNECTION,
+    READ,
+    WRITE,
+};
 
 typedef struct conn_info
 {
@@ -28,16 +33,17 @@ typedef struct conn_info
 
 conn_info conns[MAX_CONNECTIONS];
 struct iovec iovecs[MAX_CONNECTIONS];
+struct msghdr msgs[MAX_CONNECTIONS];
 char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
 
-int main(int argc, char *argv[]) 
+int main(int argc, char *argv[])
 {
 
-    if (argc < 2) 
+    if (argc < 2)
     {
         printf("Please give a port number: ./io_uring_echo_server [port]\n");
         exit(0);
-    } 
+    }
 
     // some variables we need
     int portno = strtol(argv[1], NULL, 10);
@@ -46,13 +52,12 @@ int main(int argc, char *argv[])
 
 
     // create conn_info structs
-    for (int i = 0; i < MAX_CONNECTIONS - 1; i++) 
+    for (int i = 0; i < MAX_CONNECTIONS - 1; i++)
     {
-        memset(&iovecs[i], 0, sizeof(iovecs[i]));
-        memset(&bufs[i], 0, sizeof(bufs[i]));
+        // global variables are initialized to zero by default
         iovecs[i].iov_base = bufs[i];
-        iovecs[i].iov_len = sizeof(bufs[i]);
-        memset(&conns[i], 0, sizeof(conns[i]));
+        msgs[i].msg_iov = &iovecs[i];
+        msgs[i].msg_iovlen = 1;
     }
 
 
@@ -66,14 +71,14 @@ int main(int argc, char *argv[])
     serv_addr.sin_port = htons(portno);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
-    
+
     // bind and listen
     if (bind(sock_listen_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
         perror("Error binding socket..\n");
         exit(1);
     }
-    if (listen(sock_listen_fd, BACKLOG) < 0) 
+    if (listen(sock_listen_fd, BACKLOG) < 0)
     {
         perror("Error listening..\n");
         exit(1);
@@ -83,30 +88,31 @@ int main(int argc, char *argv[])
 
     // initialize io_uring
     struct io_uring ring;
-    io_uring_queue_init(32, &ring, 0);
+    io_uring_queue_init(MAX_CONNECTIONS, &ring, 0);
 
 
     // add first io_uring poll sqe, to check when there will be data available on sock_listen_fd
     struct io_uring_sqe *sqe_init = io_uring_get_sqe(&ring);
     io_uring_prep_poll_add(sqe_init, sock_listen_fd, POLLIN);
-    conn_info conn_i = 
+    conn_info conn_i =
     {
-        .fd = sock_listen_fd, 
+        .fd = sock_listen_fd,
         .type = POLL_LISTEN
     };
     io_uring_sqe_set_data(sqe_init, &conn_i);
 
 
-    // tell kernel we have put a sqe on the submission ring
-    io_uring_submit(&ring);
 
-    
     while (1)
     {
         struct io_uring_cqe *cqe;
+        int ret;
+
+        // tell kernel we have put a sqe on the submission ring
+        io_uring_submit(&ring);
 
         // wait for new cqe to become available
-        int ret = io_uring_wait_cqe(&ring, &cqe);
+        ret = io_uring_wait_cqe(&ring, &cqe);
         if (ret != 0)
         {
             perror("Error io_uring_wait_cqe\n");
@@ -127,7 +133,7 @@ int main(int argc, char *argv[])
                 //  add poll sqe for newly connected socket
                 add_poll(&ring, sock_conn_fd, POLL_NEW_CONNECTION);
             }
-            
+
             // re-add poll sqe for listing socket
             add_poll(&ring, sock_listen_fd, POLL_LISTEN);
         }
@@ -135,33 +141,32 @@ int main(int argc, char *argv[])
         {
             // bytes available on connected socket, add read sqe
             io_uring_cqe_seen(&ring, cqe);
-            add_socket_read(&ring, user_data->fd, iovecs, READ);
+            add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN, READ);
         }
         else if (type == READ)
         {
-            if (cqe->res == 0) 
+            int bytes_read = cqe->res;
+            if (bytes_read <= 0)
             {
                 // no bytes available on socket, client must be disconnected
                 io_uring_cqe_seen(&ring, cqe);
-                shutdown(user_data->fd, 2);   
-            } 
-            else 
+                shutdown(user_data->fd, SHUT_RDWR);
+            }
+            else
             {
                 // bytes have been read into iovec, add write to socket sqe
                 io_uring_cqe_seen(&ring, cqe);
-                add_socket_write(&ring, user_data->fd, iovecs, WRITE);
+                add_socket_write(&ring, user_data->fd, bytes_read, WRITE);
             }
         }
         else if (type == WRITE)
         {
             // write to socket completed, re-add poll sqe
-            io_uring_cqe_seen(&ring, cqe);            
+            io_uring_cqe_seen(&ring, cqe);
             add_poll(&ring, user_data->fd, POLL_NEW_CONNECTION);
         }
-
-        io_uring_submit(&ring);
     }
-  
+
 }
 
 void add_poll(struct io_uring* ring, int fd, int type) {
@@ -177,10 +182,11 @@ void add_poll(struct io_uring* ring, int fd, int type) {
 }
 
 
-void add_socket_read(struct io_uring* ring, int fd, struct iovec* iovecs, int type) {
+void add_socket_read(struct io_uring* ring, int fd, size_t size, int type) {
 
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-    io_uring_prep_readv(sqe, fd, &iovecs[fd], 1, 0);
+    iovecs[fd].iov_len = size;
+    io_uring_prep_recvmsg(sqe, fd, &msgs[fd], MSG_NOSIGNAL);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
@@ -189,10 +195,11 @@ void add_socket_read(struct io_uring* ring, int fd, struct iovec* iovecs, int ty
     io_uring_sqe_set_data(sqe, conn_i);
 }
 
-void add_socket_write(struct io_uring* ring, int fd, struct iovec* iovecs, int type) {
+void add_socket_write(struct io_uring* ring, int fd, size_t size, int type) {
 
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-    io_uring_prep_writev(sqe, fd, &iovecs[fd], 1, 0);
+    iovecs[fd].iov_len = size;
+    io_uring_prep_sendmsg(sqe, fd, &msgs[fd], MSG_NOSIGNAL);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
