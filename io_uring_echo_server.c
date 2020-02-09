@@ -200,7 +200,7 @@ void add_socket_write(struct io_uring* ring, int fd, size_t size, int type) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
 
     // enabling line below causes a big performance drop
-    // iovecs[fd].iov_len = size;
+    iovecs[fd].iov_len = size;
 
     io_uring_prep_writev(sqe, fd, &iovecs[fd], 1, 0);
 
