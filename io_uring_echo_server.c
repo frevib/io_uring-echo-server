@@ -101,8 +101,6 @@ int main(int argc, char *argv[])
     };
     io_uring_sqe_set_data(sqe_init, &conn_i);
 
-
-
     while (1)
     {
         struct io_uring_cqe *cqe;
@@ -119,10 +117,11 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        // check how many cqe's are on the cqe ring, and put these cqe's in an an array.
+        // check how many cqe's are on the cqe ring, and put these cqe's in an array
         struct io_uring_cqe *cqes[BACKLOG];
         int cqe_count = io_uring_peek_batch_cqe(&ring, cqes, sizeof(cqes) / sizeof(cqes[0]));
 
+        // go through all the cqe's
         for (int i = 0; i < cqe_count; ++i)
         {
             struct io_uring_cqe *cqe = cqes[i];
@@ -173,7 +172,7 @@ int main(int argc, char *argv[])
                 io_uring_cqe_seen(&ring, cqe);
                 add_poll(&ring, user_data->fd, POLL_NEW_CONNECTION);
             }
-    }
+        }
     }
 }
 
@@ -208,8 +207,6 @@ void add_socket_write(struct io_uring *ring, int fd, size_t size, int type)
 {
 
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-
-    // enabling line below causes a big performance drop
     iovecs[fd].iov_len = size;
 
     io_uring_prep_writev(sqe, fd, &iovecs[fd], 1, 0);
