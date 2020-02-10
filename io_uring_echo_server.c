@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
         // tell kernel we have put a sqe on the submission ring
         // io_uring_submit(&ring);
 
-        io_uring_submit(&ring);
+        printf("waiting...\n");
 
         // wait for new cqe to become available
         ret = io_uring_wait_cqe(&ring, &cqe);
@@ -134,11 +134,16 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
+
+        printf("after io_uring_wait()...\n");
+
         struct conn_info *user_data = (struct conn_info *)io_uring_cqe_get_data(cqe);
         int type = user_data->type;
+        printf("user data: %d\n", user_data->type);
 
         if (type == POLL_LISTEN)
         {
+            printf("poll listen..\n");
             io_uring_cqe_seen(&ring, cqe);
 
             // io_uring_prep_accept(sqe, sock_listen_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_len, 0);
@@ -154,6 +159,7 @@ int main(int argc, char *argv[])
         }
         else if (type == POLL_NEW_CONNECTION)
         {
+            printf("poll new conn...");
             // bytes available on connected socket, add read sqe
             io_uring_cqe_seen(&ring, cqe);
             add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN, READ);
