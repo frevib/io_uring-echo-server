@@ -1,4 +1,5 @@
 #include "liburing.h"
+#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -33,7 +34,7 @@ typedef struct conn_info
 
 conn_info conns[MAX_CONNECTIONS];
 struct iovec iovecs[MAX_CONNECTIONS];
-struct msghdr msgs[MAX_CONNECTIONS];
+// struct msghdr msgs[MAX_CONNECTIONS];
 char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
 
 int main(int argc, char *argv[])
@@ -56,8 +57,8 @@ int main(int argc, char *argv[])
     {
         // global variables are initialized to zero by default
         iovecs[i].iov_base = bufs[i];
-        msgs[i].msg_iov = &iovecs[i];
-        msgs[i].msg_iovlen = 1;
+        // msgs[i].msg_iov = &iovecs[i];
+        // msgs[i].msg_iovlen = 1;
     }
 
 
@@ -85,10 +86,20 @@ int main(int argc, char *argv[])
     }
     printf("io_uring echo server listening for connections on port: %d\n", portno);
 
+    
+    struct io_uring_params p;
+    memset(&p, 0, sizeof(p));
+	p.sq_thread_idle = 20000;
+	p.flags = IORING_SETUP_SQPOLL;
 
     // initialize io_uring
     struct io_uring ring;
-    io_uring_queue_init(MAX_CONNECTIONS, &ring, 0);
+
+    // io_uring_queue_init_params(4, &ring, &p);
+    if (io_uring_queue_init_params(MAX_CONNECTIONS, &ring, &p) == -EPERM) {
+        perror("root is needed to use IORING_SETUP_SQPOLL\n");
+        exit(1);
+    };
 
 
     // add first io_uring poll sqe, to check when there will be data available on sock_listen_fd
@@ -101,6 +112,7 @@ int main(int argc, char *argv[])
     };
     io_uring_sqe_set_data(sqe_init, &conn_i);
 
+    // io_uring_submit(&ring);
 
 
     while (1)
@@ -109,10 +121,13 @@ int main(int argc, char *argv[])
         int ret;
 
         // tell kernel we have put a sqe on the submission ring
+        // io_uring_submit(&ring);
+
         io_uring_submit(&ring);
 
         // wait for new cqe to become available
         ret = io_uring_wait_cqe(&ring, &cqe);
+
         if (ret != 0)
         {
             perror("Error io_uring_wait_cqe\n");
@@ -198,8 +213,6 @@ void add_socket_read(struct io_uring* ring, int fd, size_t size, int type) {
 void add_socket_write(struct io_uring* ring, int fd, size_t size, int type) {
 
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-
-    // enabling line below causes a big performance drop
     iovecs[fd].iov_len = size;
 
     io_uring_prep_writev(sqe, fd, &iovecs[fd], 1, 0);

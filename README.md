@@ -19,7 +19,7 @@ https://github.com/CarterLi/io_uring-echo-server
 ## Versions
 
 ### v1.4
-Fixed bug that massively overstated the performance.
+Fix bug that massively overstated the performance.
 
 ### v1.3
 Use pre-allocated `sqe->user_data` instead of dynamically allocating memory.
