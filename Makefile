@@ -2,7 +2,7 @@ CCFLAGS ?= -Wall -O2 -D_GNU_SOURCE -luring
 
 all_targets = liburing io_uring_echo_server
 
-.PHONY: all clean $(all_targets) liburing io_uring_echo_server
+.PHONY: all $(all_targets) liburing io_uring_echo_server
 
 # clean:
 # 	rm -f $(all_targets)
