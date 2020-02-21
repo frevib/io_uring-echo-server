@@ -194,7 +194,9 @@ void add_socket_read(struct io_uring *ring, int fd, size_t size, int type)
 
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     iovecs[fd].iov_len = size;
-    io_uring_prep_readv(sqe, fd, &iovecs[fd], 1, 0);
+
+	io_uring_prep_recv(sqe, fd, &bufs[fd], size, 0);
+    // io_uring_prep_readv(sqe, fd, &iovecs[fd], 1, 0);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
@@ -209,7 +211,8 @@ void add_socket_write(struct io_uring *ring, int fd, size_t size, int type)
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     iovecs[fd].iov_len = size;
 
-    io_uring_prep_writev(sqe, fd, &iovecs[fd], 1, 0);
+    io_uring_prep_send(sqe, fd, &bufs[fd], size, 0);
+    // io_uring_prep_writev(sqe, fd, &bufs[fd], 1, 0);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
