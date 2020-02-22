@@ -14,6 +14,7 @@
 #define MAX_CONNECTIONS 1024
 #define BACKLOG 128
 #define MAX_MESSAGE_LEN 2048
+#define IORING_FEAT_FAST_POLL (1U << 5)
 
 void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len, int flags);
 void add_socket_read(struct io_uring* ring, int fd, size_t size, unsigned flags);
@@ -128,7 +129,7 @@ int main(int argc, char *argv[])
                 int sock_conn_fd = cqe->res;
                 io_uring_cqe_seen(&ring, cqe);
 
-                add_socket_read(&ring, sock_conn_fd, MAX_MESSAGE_LEN, 0);
+                add_socket_read(&ring, sock_conn_fd, MAX_MESSAGE_LEN, IOSQE_ASYNC);
                 add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, 0);
 
             }
@@ -145,14 +146,14 @@ int main(int argc, char *argv[])
                 {
                     // bytes have been read into bufs, now add write to socket sqe
                     io_uring_cqe_seen(&ring, cqe);
-                    add_socket_write(&ring, user_data->fd, bytes_read, 0);
+                    add_socket_write(&ring, user_data->fd, bytes_read, IOSQE_ASYNC);
                 }
             }
             else if (type == WRITE)
             {
                 // write to socket completed, re-add socket read
                 io_uring_cqe_seen(&ring, cqe);
-                add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN, 0);
+                add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN, IOSQE_ASYNC);
             }
         }
     }
