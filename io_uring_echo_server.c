@@ -81,12 +81,6 @@ int main(int argc, char *argv[])
     struct io_uring ring;
     memset(&params, 0, sizeof(params));
 
-    // params.sq_thread_idle = 5000;
-    // params.flags = IORING_SETUP_SQPOLL;
-    // params.features = (1U << 5);
-
-    // io_uring_queue_init_params(BACKLOG, &ring, &params);
-
     if (io_uring_queue_init_params(MAX_CONNECTIONS, &ring, &params) == -EPERM) 
     {
         perror("root is needed to use IORING_SETUP_SQPOLL\n");
@@ -99,11 +93,8 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-    // io_uring_queue_init(BACKLOG, &ring, 0);
-
-
-    // add first accept sqe synchronously, to monitor for new incoming connections
-    add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, IOSQE_ASYNC);
+    // add first accept sqe, to monitor for new incoming connections
+    add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, 0);
 
     while (1)
     {
@@ -152,7 +143,7 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                    // bytes have been read into bufs, add write to socket sqe
+                    // bytes have been read into bufs, now add write to socket sqe
                     io_uring_cqe_seen(&ring, cqe);
                     add_socket_write(&ring, user_data->fd, bytes_read, 0);
                 }
