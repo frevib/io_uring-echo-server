@@ -137,8 +137,8 @@ int main(int argc, char *argv[])
                 int sock_conn_fd = cqe->res;
                 io_uring_cqe_seen(&ring, cqe);
 
-                add_socket_read(&ring, sock_conn_fd, MAX_MESSAGE_LEN, IOSQE_ASYNC);
-                add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, IOSQE_ASYNC);
+                add_socket_read(&ring, sock_conn_fd, MAX_MESSAGE_LEN, 0);
+                add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, 0);
 
             }
             else if (type == READ)
@@ -152,16 +152,16 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                    // bytes have been read into iovec, add write to socket sqe
+                    // bytes have been read into bufs, add write to socket sqe
                     io_uring_cqe_seen(&ring, cqe);
-                    add_socket_write(&ring, user_data->fd, bytes_read, IOSQE_ASYNC);
+                    add_socket_write(&ring, user_data->fd, bytes_read, 0);
                 }
             }
             else if (type == WRITE)
             {
-                // write to socket completed, re-add poll sqe
+                // write to socket completed, re-add socket read
                 io_uring_cqe_seen(&ring, cqe);
-                add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN, IOSQE_ASYNC);
+                add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN, 0);
             }
         }
     }
@@ -171,7 +171,7 @@ void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, soc
 {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
 	io_uring_prep_accept(sqe, fd, client_addr, client_len, 0);
-    // io_uring_sqe_set_flags(sqe, flags);
+    io_uring_sqe_set_flags(sqe, flags);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
@@ -184,7 +184,7 @@ void add_socket_read(struct io_uring *ring, int fd, size_t size, unsigned flags)
 {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
 	io_uring_prep_recv(sqe, fd, &bufs[fd], size, MSG_NOSIGNAL);
-    // io_uring_sqe_set_flags(sqe, flags);
+    io_uring_sqe_set_flags(sqe, flags);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
@@ -197,7 +197,7 @@ void add_socket_write(struct io_uring *ring, int fd, size_t size, unsigned flags
 {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     io_uring_prep_send(sqe, fd, &bufs[fd], size, MSG_NOSIGNAL);
-    // io_uring_sqe_set_flags(sqe, flags);
+    io_uring_sqe_set_flags(sqe, flags);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
