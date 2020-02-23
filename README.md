@@ -1,7 +1,7 @@
 # io_uring bare minimum echo server
 * uses an event loop created with io_uring
 * uses liburing HEAD https://github.com/axboe/liburing
-* Linux 5.6 or higher with IORING_FEAT_FAST_POLL (available in https://git.kernel.dk/cgit/linux-block/?h=io_uring-task-poll) needed.
+* __Linux 5.6 or higher with IORING_FEAT_FAST_POLL__ (available in https://git.kernel.dk/cgit/linux-block/?h=io_uring-task-poll).
 
 
 ## Install and run

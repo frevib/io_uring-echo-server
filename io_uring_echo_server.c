@@ -39,7 +39,6 @@ char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
 
 int main(int argc, char *argv[])
 {
-
     if (argc < 2)
     {
         printf("Please give a port number: ./io_uring_echo_server [port]\n");
@@ -91,8 +90,9 @@ int main(int argc, char *argv[])
     if (!(params.features & IORING_FEAT_FAST_POLL))
     {
         fprintf(stdout, "IORING_FEAT_FAST_POLL not available in the kernel, quiting...\n");
-        return 0;
+        exit(0);
     }
+
 
     // add first accept sqe, to monitor for new incoming connections
     add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, 0);
