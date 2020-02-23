@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 
     // initialize io_uring
     struct io_uring ring;
-    io_uring_queue_init(BACKLOG, &ring, 0);
+    io_uring_queue_init(1024, &ring, 0);
 
 
     // add first io_uring poll sqe, to check when there will be data available on sock_listen_fd
