@@ -3,7 +3,6 @@
 * uses liburing HEAD https://github.com/axboe/liburing
 * Linux 5.6 or higher with IORING_FEAT_FAST_POLL (available in https://git.kernel.dk/cgit/linux-block/?h=io_uring-task-poll) needed.
 
-IORING_FEAT_FAST_POLL will be available from Linux 5.7
 
 ## Install and run
 `make liburing`
@@ -17,8 +16,11 @@ https://github.com/frevib/epoll-echo-server
 
 
 ## Benchmarks
-#### IORING_FEAT_FAST_POLL
-max@ubuntu:~/hdv/source/rust_echo_bench$ cargo run --release -- --address "localhost:6666" --number 50 --duration 20 --length 512
+
+* Vmware Ubuntu 18.04, 8gb RAM, 6 vcores, 1 core isolated for the echo server with `isolcpus=0`
+* Using Rust echo bench (https://github.com/haraldh/rust_echo_bench): `cargo run --release -- --address "localhost:6666" --number 50 --duration 20 --length 512`
+
+#### io_uring_echo_server with IORING_FEAT_FAST_POLL
     Finished release [optimized] target(s) in 0.00s
      Running `target/release/echo_bench --address 'localhost:6666' --number 50 --duration 20 --length 512`
 Benchmarking: localhost:6666
@@ -30,8 +32,7 @@ Responses: 2660930
 
 
 
-#### epoll
-max@ubuntu:~/hdv/source/rust_echo_bench$ cargo run --release -- --address "localhost:7777" --number 50 --duration 20 --length 512
+#### epoll_echo_server https://github.com/frevib/epoll-echo-server
     Finished release [optimized] target(s) in 0.00s
      Running `target/release/echo_bench --address 'localhost:7777' --number 50 --duration 20 --length 512`
 Benchmarking: localhost:7777
