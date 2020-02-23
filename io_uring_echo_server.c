@@ -82,17 +82,17 @@ int main(int argc, char *argv[])
     struct io_uring ring;
     memset(&params, 0, sizeof(params));
 
-    if (io_uring_queue_init_params(MAX_CONNECTIONS, &ring, &params) < 0) 
+    if (io_uring_queue_init_params(MAX_CONNECTIONS, &ring, &params) < 0)
     {
         perror("io_uring_init_failed...\n");
         exit(1);
     }
 
-    if (!(params.features & IORING_FEAT_FAST_POLL)) 
+    if (!(params.features & IORING_FEAT_FAST_POLL))
     {
-		fprintf(stdout, "IORING_FEAT_FAST_POLL not available in the kernel, quiting...\n");
-		return 0;
-	}
+        fprintf(stdout, "IORING_FEAT_FAST_POLL not available in the kernel, quiting...\n");
+        return 0;
+    }
 
     // add first accept sqe, to monitor for new incoming connections
     add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, 0);
