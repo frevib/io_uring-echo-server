@@ -16,7 +16,7 @@
 #define MAX_MESSAGE_LEN 2048
 #define IORING_FEAT_FAST_POLL (1U << 5)
 
-void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len, int flags);
+void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len, unsigned flags);
 void add_socket_read(struct io_uring* ring, int fd, size_t size, unsigned flags);
 void add_socket_write(struct io_uring* ring, int fd, size_t size, unsigned flags);
 
@@ -30,8 +30,8 @@ enum {
 
 typedef struct conn_info
 {
-    int fd;
-    int type;
+    unsigned fd;
+    unsigned type;
 } conn_info;
 
 conn_info conns[MAX_CONNECTIONS];
@@ -82,15 +82,15 @@ int main(int argc, char *argv[])
     struct io_uring ring;
     memset(&params, 0, sizeof(params));
 
-    if (io_uring_queue_init_params(MAX_CONNECTIONS, &ring, &params) == -EPERM) 
+    if (io_uring_queue_init_params(MAX_CONNECTIONS, &ring, &params) < 0) 
     {
-        perror("root is needed to use IORING_SETUP_SQPOLL\n");
+        perror("io_uring_init_failed...\n");
         exit(1);
     }
 
-    if (!(params.features & (1U << 5))) 
+    if (!(params.features & IORING_FEAT_FAST_POLL)) 
     {
-		fprintf(stdout, "IORING_FEAT_FAST_POLL not there, skipping\n");
+		fprintf(stdout, "IORING_FEAT_FAST_POLL not available in the kernel, quiting...\n");
 		return 0;
 	}
 
@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
                 int sock_conn_fd = cqe->res;
                 io_uring_cqe_seen(&ring, cqe);
 
-                add_socket_read(&ring, sock_conn_fd, MAX_MESSAGE_LEN, IOSQE_ASYNC);
+                add_socket_read(&ring, sock_conn_fd, MAX_MESSAGE_LEN, 0);
                 add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, 0);
 
             }
@@ -146,23 +146,23 @@ int main(int argc, char *argv[])
                 {
                     // bytes have been read into bufs, now add write to socket sqe
                     io_uring_cqe_seen(&ring, cqe);
-                    add_socket_write(&ring, user_data->fd, bytes_read, IOSQE_ASYNC);
+                    add_socket_write(&ring, user_data->fd, bytes_read, 0);
                 }
             }
             else if (type == WRITE)
             {
                 // write to socket completed, re-add socket read
                 io_uring_cqe_seen(&ring, cqe);
-                add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN, IOSQE_ASYNC);
+                add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN, 0);
             }
         }
     }
 }
 
-void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len, int flags) 
+void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len, unsigned flags)
 {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-	io_uring_prep_accept(sqe, fd, client_addr, client_len, 0);
+    io_uring_prep_accept(sqe, fd, client_addr, client_len, 0);
     io_uring_sqe_set_flags(sqe, flags);
 
     conn_info *conn_i = &conns[fd];
@@ -175,7 +175,7 @@ void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, soc
 void add_socket_read(struct io_uring *ring, int fd, size_t size, unsigned flags)
 {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-	io_uring_prep_recv(sqe, fd, &bufs[fd], size, MSG_NOSIGNAL);
+    io_uring_prep_recv(sqe, fd, &bufs[fd], size, 0);
     io_uring_sqe_set_flags(sqe, flags);
 
     conn_info *conn_i = &conns[fd];
@@ -188,7 +188,7 @@ void add_socket_read(struct io_uring *ring, int fd, size_t size, unsigned flags)
 void add_socket_write(struct io_uring *ring, int fd, size_t size, unsigned flags)
 {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-    io_uring_prep_send(sqe, fd, &bufs[fd], size, MSG_NOSIGNAL);
+    io_uring_prep_send(sqe, fd, &bufs[fd], size, 0);
     io_uring_sqe_set_flags(sqe, flags);
 
     conn_info *conn_i = &conns[fd];
