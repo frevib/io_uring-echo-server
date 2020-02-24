@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
     struct io_uring ring;
     memset(&params, 0, sizeof(params));
 
-    if (io_uring_queue_init_params(MAX_CONNECTIONS, &ring, &params) < 0)
+    if (io_uring_queue_init_params(1024, &ring, &params) < 0)
     {
         perror("io_uring_init_failed...\n");
         exit(1);
@@ -89,14 +89,16 @@ int main(int argc, char *argv[])
 
     if (!(params.features & IORING_FEAT_FAST_POLL))
     {
-        fprintf(stdout, "IORING_FEAT_FAST_POLL not available in the kernel, quiting...\n");
+        printf("IORING_FEAT_FAST_POLL not available in the kernel, quiting...\n");
         exit(0);
     }
 
 
-    // add first accept sqe, to monitor for new incoming connections
+    // add first accept sqe to monitor for new incoming connections
     add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, 0);
 
+
+    // start event loop
     while (1)
     {
         struct io_uring_cqe *cqe;
@@ -113,7 +115,7 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        // check how many cqe's are on the cqe ring, and put these cqe's in an array
+        // check how many cqe's are on the cqe ring at this moment
         struct io_uring_cqe *cqes[BACKLOG];
         int cqe_count = io_uring_peek_batch_cqe(&ring, cqes, sizeof(cqes) / sizeof(cqes[0]));
 
@@ -129,9 +131,9 @@ int main(int argc, char *argv[])
                 int sock_conn_fd = cqe->res;
                 io_uring_cqe_seen(&ring, cqe);
 
+                // new connected client; read data from socket and re-add accept to monitor for new connections
                 add_socket_read(&ring, sock_conn_fd, MAX_MESSAGE_LEN, 0);
                 add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, 0);
-
             }
             else if (type == READ)
             {
