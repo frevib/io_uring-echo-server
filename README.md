@@ -1,7 +1,7 @@
 # io_uring bare minimum echo server
 * uses an event loop created with io_uring
 * uses liburing HEAD https://github.com/axboe/liburing
-* __Linux 5.6 or higher with IORING_FEAT_FAST_POLL__ (available in https://git.kernel.dk/cgit/linux-block/?h=io_uring-task-poll).
+* __Linux 5.6 or higher with IORING_FEAT_FAST_POLL required__ (available in https://git.kernel.dk/cgit/linux-block/?h=io_uring-task-poll).
 
 
 ## Install and run
@@ -51,8 +51,12 @@ Responses: 1963833
 
 ## Versions
 
+### v1.5
+* Use IORING_FEAT_FAST_POLL, which increases performance a lot
+* Remove all polling, this is now handled by IORING_FEAT_FAST_POLL
+
 ### v1.4
-Fixed bug that massively overstated the performance.
+Fix bug that massively overstated the performance.
 
 ### v1.3
 Use pre-allocated `sqe->user_data` instead of dynamically allocating memory.
