@@ -1,6 +1,8 @@
 CCFLAGS ?= -Wall -O2 -D_GNU_SOURCE -luring
-
 all_targets = io_uring_echo_server
+
+
+.PHONY liburing
 
 all: $(all_targets)
 
