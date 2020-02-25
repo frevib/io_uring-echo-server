@@ -1,0 +1,14 @@
+Compiling test case __kernel_rwf_t
+gcc -D_GNU_SOURCE -include config-host.h -o /tmp/fio-conf--3189-.exe /tmp/fio-conf--3189-.c
+Compiling test case __kernel_timespec
+gcc -D_GNU_SOURCE -include config-host.h -o /tmp/fio-conf--3189-.exe /tmp/fio-conf--3189-.c
+/tmp/fio-conf--3189-.c: In function ‘main’:
+/tmp/fio-conf--3189-.c:4:28: error: storage size of ‘ts’ isn’t known
+   struct __kernel_timespec ts;
+                            ^~
+Compiling test case open_how
+gcc -D_GNU_SOURCE -include config-host.h -o /tmp/fio-conf--3189-.exe /tmp/fio-conf--3189-.c
+/tmp/fio-conf--3189-.c: In function ‘main’:
+/tmp/fio-conf--3189-.c:7:19: error: storage size of ‘how’ isn’t known
+   struct open_how how;
+                   ^~~
