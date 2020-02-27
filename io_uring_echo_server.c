@@ -12,7 +12,7 @@
 #include <sys/poll.h>
 
 #define MAX_CONNECTIONS 1024
-#define BACKLOG 128
+#define BACKLOG 512
 #define MAX_MESSAGE_LEN 2048
 #define IORING_FEAT_FAST_POLL (1U << 5)
 
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
     struct io_uring ring;
     memset(&params, 0, sizeof(params));
 
-    if (io_uring_queue_init_params(1024, &ring, &params) < 0)
+    if (io_uring_queue_init_params(4096, &ring, &params) < 0)
     {
         perror("io_uring_init_failed...\n");
         exit(1);
