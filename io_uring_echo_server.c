@@ -11,7 +11,7 @@
 #include <sys/socket.h>
 #include <sys/poll.h>
 
-#define MAX_CONNECTIONS 1024
+#define MAX_CONNECTIONS 4096
 #define BACKLOG 512
 #define MAX_MESSAGE_LEN 2048
 #define IORING_FEAT_FAST_POLL (1U << 5)
