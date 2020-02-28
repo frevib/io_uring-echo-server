@@ -16,7 +16,7 @@
 ## test tool
 * Rust echo bench
 * `cargo run --release -- --address "localhost:6666" --number [number of clients] --duration [duration in secs] --length [msg size]`
-* 2 runs for each combination of 128, 512 and 1000 bytes message size with 1, 50, 150 and 300 clients
+* 2 runs for each combination of 128, 512 and 1000 bytes message size with 1, 50, 150, 300, 500 and 1000 clients
 
 
 
