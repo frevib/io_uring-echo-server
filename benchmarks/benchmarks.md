@@ -1,13 +1,13 @@
 # io_uring echo server benchmarks
 
-## requiremenst to run the tests
+## requirements to run the benchmarks
 * __Linux 5.6 or higher with IORING_FEAT_FAST_POLL required__ (available in https://git.kernel.dk/cgit/linux-block/?h=io_uring-task-poll). [here][kernel_compile] is how to compile a Linux kernel. Tip: clone Linux kernel from Github (much faster), then merge the io_uring-task-poll branch.
 
 ## programs under test
 * echo server using an event loop created with __io_uring__ : https://github.com/frevib/io_uring-echo-server/tree/io-uring-feat-fast-poll
 * echo server using an event loop created with __epoll__ : https://github.com/frevib/epoll-echo-server
 
-## system specs for the benchmark
+## system specs for the benchmarks
 * Macbook pro 6-core, 32GB RAM, 2,6 GHz
 * Vmware Ubuntu 18.04, 8GB RAM, 6 vcores (3 physical cores)
 * Linux ubuntu 5.6.0-rc1+ x86_64 with IORING_FEAT_FAST_POLL
@@ -42,6 +42,10 @@
 |  512 bytes     | 13190 | 135973 | 147153 | 142518 | 124584 | 107257 |
 |  1000 bytes    | 13172 | 131773 | 142481 | 131748 | 123287 | 102474 |
 
+
+**scatter plot for the tables above**
+
+<img src="io_uring_vs_epoll.png" alt="io_uring vs epoll benchmarks" width="600"/>
 
 
 ## extra info
@@ -78,3 +82,4 @@ done
 
 
 [kernel_compile]: https://www.cyberciti.biz/tips/compiling-linux-kernel-26.html
+[benchmark_plot]: io_uring_vs_epoll.png =250x
