@@ -12,14 +12,13 @@
 * Vmware Ubuntu 18.04, 8GB RAM, 6 vcores (3 physical cores)
 * Linux ubuntu 5.6.0-rc1+ x86_64 with IORING_FEAT_FAST_POLL
 * 2 vcores (one physical) isolated for the echo server with `isolcpus=0,1`.
-* the echo server is assigned a dedicates CPU with `taskset -cp 0 [pid]`
+* Echo server is assigned a dedicated CPU with `taskset -cp 0 [pid]`
 
 
-## test tool
-* Rust echo bench
+## benchmark tool
+* Rust echo bench: https://github.com/haraldh/rust_echo_bench
 * `cargo run --release -- --address "localhost:6666" --number [number of clients] --duration [duration in secs] --length [msg size]`
 * 2 runs for each combination of 128, 512 and 1000 bytes message size with 1, 50, 150, 300, 500 and 1000 clients
-
 
 
 
@@ -35,8 +34,8 @@
 
 
 
-
 **epoll**
+
 |  clients       | 1     | 50     | 150    | 300    | 500    | 1000   |
 |:--------------:|:-----:|:------:|:------:|:------:|:------:|:------:|
 |  128 bytes     | 13177 | 139863 | 152561 | 145517 | 125402 | 108380 |
@@ -45,12 +44,10 @@
 
 
 
-
-
 ## extra info
 * Testing with many more, > 2000 clients, causes both echo servers to crash.
-* When running many clients, `io_uring_echo_server` becomes unresponsive in an uninterruptible sleep state. So for this echo server first the 128 bytes and 512 bytes benchmark is run, then the echo server is restarted and the 1000 bytes benchmark is run. I'm not sure what is happening here. There are problems with the epoll echo server.
-* io_uring_echo_server needs a separate buffer per connection. Each buffer is indexed by it's file descriptor number, like `bufs[fd_number]. So if you have many connections you could have a segfault when the fd_number is too high.
+* When running many clients for a period of time, `io_uring_echo_server` becomes unresponsive in an uninterruptible sleep state. So for this echo server first the 128 bytes and 512 bytes benchmark is run sequentially, then the echo server is restarted and the 1000 bytes benchmark is run. I'm not sure what is happening here. There are no problems with the epoll echo server.
+* io_uring_echo_server needs a separate buffer per connection. Each buffer is indexed by it's file descriptor number, like `bufs[fd_number]`. So if you have many connections you could have a segfault when the fd_number is too high.
 * the following script is used to run the benchmarks from the Rust echo bench directory:
 
 
