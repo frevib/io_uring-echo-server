@@ -51,7 +51,7 @@
 ## extra info
 * Testing with many more, > 2000 clients, causes both echo servers to crash.
 * When running many clients for a period of time, `io_uring_echo_server` becomes unresponsive in an uninterruptible sleep state. So for this echo server first the 128 bytes and 512 bytes benchmark is run sequentially, then the echo server is restarted and the 1000 bytes benchmark is run. I'm not sure what is happening here. There are no problems with the epoll echo server.
-* io_uring_echo_server needs a separate buffer per connection. Each buffer is indexed by it's file descriptor number, like `bufs[fd_number]`. So if you have many connections you could have a segfault when the fd_number is too high.
+* io_uring_echo_server needs a separate buffer per connection. Each buffer is indexed by it's file descriptor number, like `bufs[fd_number]`. So if you have many connections you could have a segfault when the fd_number is too high. There is a fix for that in progress: https://lore.kernel.org/io-uring/20200228203053.25023-1-axboe@kernel.dk/T/#u
 * the following script is used to run the benchmarks from the Rust echo bench directory:
 
 
