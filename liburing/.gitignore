@@ -8,6 +8,7 @@
 
 /src/liburing.a
 /src/liburing.so*
+/src/include/liburing/compat.h
 
 /examples/io_uring-cp
 /examples/io_uring-test
@@ -74,6 +75,7 @@
 /test/short-read
 /test/socket-rw
 /test/sq-full
+/test/sq-poll-kthread
 /test/sq-space_left
 /test/statx
 /test/stdout

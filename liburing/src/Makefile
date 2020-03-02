@@ -4,7 +4,7 @@ libdir ?= $(prefix)/lib
 libdevdir ?= $(prefix)/lib
 
 CFLAGS ?= -g -fomit-frame-pointer -O2
-override CFLAGS += -Wall -Iinclude/
+override CFLAGS += -Wall -Iinclude/ -include ../config-host.h
 SO_CFLAGS=-shared -fPIC $(CFLAGS)
 L_CFLAGS=$(CFLAGS)
 LINK_FLAGS=
@@ -13,7 +13,7 @@ ENABLE_SHARED ?= 1
 
 soname=liburing.so.1
 minor=0
-micro=4
+micro=6
 libname=$(soname).$(minor).$(micro)
 all_targets += liburing.a
 
@@ -69,3 +69,4 @@ $(liburing_objs): include/liburing.h
 clean:
 	@rm -f $(all_targets) $(liburing_objs) $(liburing_sobjs) $(soname).new
 	@rm -f *.so* *.a *.o
+	@rm -f include/liburing/compat.h

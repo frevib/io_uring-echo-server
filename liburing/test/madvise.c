@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * Description: basic madvise test
  */
@@ -91,6 +92,7 @@ static int do_madvise(struct io_uring *ring, void *addr, off_t len, int advice)
 	ret = cqe->res;
 	if (ret == -EINVAL || ret == -EBADF) {
 		fprintf(stdout, "Madvise not supported, skipping\n");
+		unlink(".madvise.tmp");
 		exit(0);
 	} else if (ret) {
 		fprintf(stderr, "cqe->res=%d\n", cqe->res);

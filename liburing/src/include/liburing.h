@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 #ifndef LIB_URING_H
 #define LIB_URING_H
 
@@ -13,22 +14,6 @@ extern "C" {
 #include "liburing/compat.h"
 #include "liburing/io_uring.h"
 #include "liburing/barrier.h"
-
-#ifndef CONFIG_HAVE_KERNEL_TIMESPEC
-struct __kernel_timespec {
-	int64_t		tv_sec;
-	long long	tv_nsec;
-};
-#endif
-
-#ifndef CONFIG_HAVE_OPEN_HOW
-struct open_how {
-	uint64_t	flags;
-	uint16_t	mode;
-	uint16_t	__padding[3];
-	uint64_t	resolve;
-};
-#endif
 
 /*
  * Library interface to io_uring
@@ -206,6 +191,18 @@ static inline void io_uring_prep_rw(int op, struct io_uring_sqe *sqe, int fd,
 	sqe->__pad2[0] = sqe->__pad2[1] = sqe->__pad2[2] = 0;
 }
 
+static inline void io_uring_prep_splice(struct io_uring_sqe *sqe,
+					int fd_in, loff_t off_in,
+					int fd_out, loff_t off_out,
+					unsigned int nbytes,
+					unsigned int splice_flags)
+{
+	io_uring_prep_rw(IORING_OP_SPLICE, sqe, fd_out, NULL, nbytes, off_out);
+	sqe->splice_off_in = off_in;
+	sqe->splice_fd_in = fd_in;
+	sqe->splice_flags = splice_flags;
+}
+
 static inline void io_uring_prep_readv(struct io_uring_sqe *sqe, int fd,
 				       const struct iovec *iovecs,
 				       unsigned nr_vecs, off_t offset)
@@ -355,7 +352,7 @@ static inline void io_uring_prep_read(struct io_uring_sqe *sqe, int fd,
 }
 
 static inline void io_uring_prep_write(struct io_uring_sqe *sqe, int fd,
-				       void *buf, unsigned nbytes, off_t offset)
+				       const void *buf, unsigned nbytes, off_t offset)
 {
 	io_uring_prep_rw(IORING_OP_WRITE, sqe, fd, buf, nbytes, offset);
 }
@@ -411,6 +408,14 @@ static inline void io_uring_prep_epoll_ctl(struct io_uring_sqe *sqe, int epfd,
 					   struct epoll_event *ev)
 {
 	io_uring_prep_rw(IORING_OP_EPOLL_CTL, sqe, epfd, ev, op, fd);
+}
+
+static inline void io_uring_prep_provide_buffers(struct io_uring_sqe *sqe,
+						 void *addr, int len, int nr,
+						 int gid, int bid)
+{
+	io_uring_prep_rw(IORING_OP_PROVIDE_BUFFERS, sqe, nr, addr, len, bid);
+	sqe->buf_group = gid;
 }
 
 static inline unsigned io_uring_sq_ready(struct io_uring *ring)

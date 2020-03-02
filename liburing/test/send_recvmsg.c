@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * Simple test case showing using sendmsg and recvmsg through io_uring
  */
@@ -5,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -19,12 +21,16 @@ static char str[] = "This is a test of sendmsg and recvmsg over io_uring!";
 #define PORT	10200
 #define HOST	"127.0.0.1"
 
-static int recv_prep(struct io_uring *ring, struct iovec *iov)
+#define BUF_GID		10
+#define BUF_BID		89
+
+static int recv_prep(struct io_uring *ring, struct iovec *iov, int gid)
 {
 	struct sockaddr_in saddr;
 	struct msghdr msg;
 	struct io_uring_sqe *sqe;
 	int sockfd, ret;
+	int val = 1;
 
 	memset(&saddr, 0, sizeof(saddr));
 	saddr.sin_family = AF_INET;
@@ -36,6 +42,10 @@ static int recv_prep(struct io_uring *ring, struct iovec *iov)
 		perror("socket");
 		return 1;
 	}
+
+	val = 1;
+	setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
+	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 
 	ret = bind(sockfd, (struct sockaddr *)&saddr, sizeof(saddr));
 	if (ret < 0) {
@@ -50,6 +60,12 @@ static int recv_prep(struct io_uring *ring, struct iovec *iov)
 
 	sqe = io_uring_get_sqe(ring);
 	io_uring_prep_recvmsg(sqe, sockfd, &msg, 0);
+	if (gid) {
+		sqe->user_data = (unsigned long) iov->iov_base;
+		iov->iov_base = NULL;
+		sqe->flags |= IOSQE_BUFFER_SELECT;
+		sqe->buf_group = gid;
+	}
 
 	ret = io_uring_submit(ring);
 	if (ret <= 0) {
@@ -57,19 +73,41 @@ static int recv_prep(struct io_uring *ring, struct iovec *iov)
 		goto err;
 	}
 
+	close(sockfd);
 	return 0;
 err:
 	close(sockfd);
 	return 1;
 }
 
-static int do_recvmsg(struct io_uring *ring, struct iovec *iov)
+struct recv_data {
+	pthread_mutex_t *mutex;
+	int buf_select;
+	int no_buf_add;
+};
+
+static int do_recvmsg(struct io_uring *ring, struct iovec *iov,
+		      struct recv_data *rd)
 {
 	struct io_uring_cqe *cqe;
 
 	io_uring_wait_cqe(ring, &cqe);
 	if (cqe->res < 0) {
-		fprintf(stderr, "failed cqe: %d\n", cqe->res);
+		if (rd->no_buf_add && rd->buf_select)
+			return 0;
+		fprintf(stderr, "%s: failed cqe: %d\n", __FUNCTION__, cqe->res);
+		goto err;
+	}
+	if (cqe->flags) {
+		int bid = cqe->flags >> 16;
+		if (bid != BUF_BID)
+			fprintf(stderr, "Buffer ID mismatch %d\n", bid);
+		/* just for passing the pointer to str */
+		iov->iov_base = (void *) cqe->user_data;
+	}
+
+	if (rd->no_buf_add && rd->buf_select) {
+		fprintf(stderr, "Expected -ENOBUFS: %d\n", cqe->res);
 		goto err;
 	}
 
@@ -91,22 +129,59 @@ err:
 
 static void *recv_fn(void *data)
 {
-	pthread_mutex_t *mutex = data;
+	struct recv_data *rd = data;
+	pthread_mutex_t *mutex = rd->mutex;
 	char buf[MAX_MSG + 1];
 	struct iovec iov = {
 		.iov_base = buf,
 		.iov_len = sizeof(buf) - 1,
 	};
+	struct io_uring_sqe *sqe;
+	struct io_uring_cqe *cqe;
 	struct io_uring ring;
 	int ret;
 
-	io_uring_queue_init(1, &ring, 0);
+	ret = io_uring_queue_init(1, &ring, 0);
+	if (ret) {
+		fprintf(stderr, "queue init failed: %d\n", ret);
+		goto err;
+	}
 
-	recv_prep(&ring, &iov);
+	if (rd->buf_select && !rd->no_buf_add) {
+		sqe = io_uring_get_sqe(&ring);
+		io_uring_prep_provide_buffers(sqe, buf, sizeof(buf) -1, 1,
+						BUF_GID, BUF_BID);
+		ret = io_uring_submit(&ring);
+		if (ret != 1) {
+			fprintf(stderr, "submit ret=%d\n", ret);
+			goto err;
+		}
+
+		io_uring_wait_cqe(&ring, &cqe);
+		ret = cqe->res;
+		io_uring_cqe_seen(&ring, cqe);
+		if (ret == -EINVAL) {
+			fprintf(stdout, "PROVIDE_BUFFERS not supported, skip\n");
+			ret = 0;
+			goto err;
+		} else if (ret < 0) {
+			fprintf(stderr, "PROVIDER_BUFFERS %d\n", ret);
+			goto err;
+		}
+	}
+
+	ret = recv_prep(&ring, &iov, rd->buf_select ? BUF_GID : 0);
+	if (ret) {
+		fprintf(stderr, "recv_prep failed: %d\n", ret);
+		goto err;
+	}
+
 	pthread_mutex_unlock(mutex);
-	ret = do_recvmsg(&ring, &iov);
+	ret = do_recvmsg(&ring, &iov, rd);
 
 	io_uring_queue_exit(&ring);
+
+err:
 	return (void *)(intptr_t)ret;
 }
 
@@ -125,7 +200,7 @@ static int do_sendmsg(void)
 
 	ret = io_uring_queue_init(1, &ring, 0);
 	if (ret) {
-		fprintf(stderr, "queue init fail: %d\n", ret);
+		fprintf(stderr, "queue init failed: %d\n", ret);
 		return 1;
 	}
 
@@ -157,7 +232,7 @@ static int do_sendmsg(void)
 
 	ret = io_uring_wait_cqe(&ring, &cqe);
 	if (cqe->res < 0) {
-		fprintf(stderr, "failed cqe: %d\n", cqe->res);
+		fprintf(stderr, "%s: failed cqe: %d\n", __FUNCTION__, cqe->res);
 		goto err;
 	}
 
@@ -168,8 +243,9 @@ err:
 	return 1;
 }
 
-int main(int argc, char *argv[])
+static int test(int buf_select, int no_buf_add)
 {
+	struct recv_data rd;
 	pthread_mutexattr_t attr;
 	pthread_t recv_thread;
 	pthread_mutex_t mutex;
@@ -181,7 +257,10 @@ int main(int argc, char *argv[])
 	pthread_mutex_init(&mutex, &attr);
 	pthread_mutex_lock(&mutex);
 
-	ret = pthread_create(&recv_thread, NULL, recv_fn, &mutex);
+	rd.mutex = &mutex;
+	rd.buf_select = buf_select;
+	rd.no_buf_add = no_buf_add;
+	ret = pthread_create(&recv_thread, NULL, recv_fn, &rd);
 	if (ret) {
 		fprintf(stderr, "Thread create failed\n");
 		return 1;
@@ -193,4 +272,30 @@ int main(int argc, char *argv[])
 	ret = (int)(intptr_t)retval;
 
 	return ret;
+}
+
+int main(int argc, char *argv[])
+{
+	int ret;
+
+	ret = test(0, 0);
+	if (ret) {
+		fprintf(stderr, "send_recvmsg 0 failed\n");
+		return 1;
+	}
+
+	ret = test(1, 0);
+	if (ret) {
+		fprintf(stderr, "send_recvmsg 1 0 failed\n");
+		return 1;
+	}
+
+	ret = test(1, 1);
+	if (ret) {
+		fprintf(stderr, "send_recvmsg 1 1 failed\n");
+		return 1;
+	}
+
+
+	return 0;
 }
