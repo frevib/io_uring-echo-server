@@ -137,11 +137,12 @@ int main(int argc, char *argv[])
         io_uring_submit_and_wait(&ring, 1);
     	struct io_uring_cqe *cqe;
 		unsigned head;
-		// unsigned count = 0;
+		unsigned count = 0;
 
         // go through all the cqe's
         io_uring_for_each_cqe(&ring, head, cqe)
         {
+            ++count;
             struct conn_info conn_i;
 			memcpy(&conn_i, &cqe->user_data, sizeof(conn_i));
 
@@ -159,12 +160,10 @@ int main(int argc, char *argv[])
                     fprintf(stderr, "cqe->res=%d\n", cqe->res);
                     return 1;
                 }
-                io_uring_cqe_seen(&ring, cqe);
             }
             else if (type == ACCEPT)
             {
                 int sock_conn_fd = cqe->res;
-                io_uring_cqe_seen(&ring, cqe);
 
                 // new connected client; read data from socket and re-add accept to monitor for new connections
                 add_socket_read(&ring, sock_conn_fd, MAX_MESSAGE_LEN, IOSQE_BUFFER_SELECT);
@@ -176,17 +175,12 @@ int main(int argc, char *argv[])
                 if (bytes_read <= 0)
                 {
                     // no bytes available on socket, client must be disconnected
-                    io_uring_cqe_seen(&ring, cqe);
                     shutdown(conn_i.fd, SHUT_RDWR);
                 }
                 else
                 {
                     // bytes have been read into bufs, now add write to socket sqe
-
                     int bid = cqe->flags >> 16;
-                    // printf("bid: %d\n", bid);
-
-                    io_uring_cqe_seen(&ring, cqe);
                     add_socket_write(&ring, conn_i.fd, bid, bytes_read, 0);
                 }
             }
@@ -199,13 +193,13 @@ int main(int argc, char *argv[])
                 //     add_provide_buf(&ring, 0);
                 //     counter = 0;
                 // }
-                add_provide_buf(&ring, 0);
-                io_uring_cqe_seen(&ring, cqe);
+                add_provide_buf(&ring, conn_i.bid);
                 add_socket_read(&ring, conn_i.fd, MAX_MESSAGE_LEN, IOSQE_BUFFER_SELECT);
             }
-            // else if 
+            // else if
         }
-        }
+        io_uring_cq_advance(&ring, count);
+    }
 }
 
 void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len, unsigned flags)
