@@ -110,31 +110,20 @@ int main(int argc, char *argv[])
     int buffers = 1000;
     struct io_uring_sqe *sqe;
     struct io_uring_cqe *cqe;
-    for (int i = 0; i < buffers; i++)
-    {
-        sqe = io_uring_get_sqe(&ring);
-        io_uring_prep_provide_buffers(sqe, bufs[i], MAX_MESSAGE_LEN, 1, 1337, i);
-    }
+
+    sqe = io_uring_get_sqe(&ring);
+    io_uring_prep_provide_buffers(sqe, bufs, MAX_MESSAGE_LEN, buffers, 1337, 0);
 
     // request buffer selection is also async??
-    int ret = io_uring_submit(&ring);
+    io_uring_submit(&ring);
 
-    if (ret != buffers)
+    io_uring_wait_cqe(&ring, &cqe);
+    if (cqe->res < 0)
     {
-        fprintf(stderr, "submit: %d\n", ret);
-        return -1;
+        fprintf(stderr, "cqe->res=%d\n", cqe->res);
+        return 1;
     }
-
-    for (int i = 0; i < buffers; i++)
-    {
-        ret = io_uring_wait_cqe(&ring, &cqe);
-        if (cqe->res < 0)
-        {
-            fprintf(stderr, "cqe->res=%d\n", cqe->res);
-            return 1;
-        }
-        io_uring_cqe_seen(&ring, cqe);
-    }
+    io_uring_cqe_seen(&ring, cqe);
 
 
     // add first accept sqe to monitor for new incoming connections
