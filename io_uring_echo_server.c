@@ -86,7 +86,6 @@ int main(int argc, char *argv[])
         perror("io_uring_init_failed...\n");
         exit(1);
     }
-
     if (!(params.features & IORING_FEAT_FAST_POLL))
     {
         printf("IORING_FEAT_FAST_POLL not available in the kernel, quiting...\n");
@@ -101,8 +100,8 @@ int main(int argc, char *argv[])
     p = io_uring_get_probe_ring(&ring);
     if (!p || !io_uring_opcode_supported(p, IORING_OP_PROVIDE_BUFFERS))
     {
-        fprintf(stdout, "Buffer select not supported, skipping\n");
-        return 0;
+        printf("Buffer select not supported, skipping\n");
+        exit(0);
     }
     free(p);
 
@@ -116,12 +115,11 @@ int main(int argc, char *argv[])
 
     // request buffer selection is also async??
     io_uring_submit(&ring);
-
     io_uring_wait_cqe(&ring, &cqe);
     if (cqe->res < 0)
     {
-        fprintf(stderr, "cqe->res=%d\n", cqe->res);
-        return 1;
+        printf("cqe->res = %d\n", cqe->res);
+        exit(1);
     }
     io_uring_cqe_seen(&ring, cqe);
 
@@ -147,18 +145,17 @@ int main(int argc, char *argv[])
 			memcpy(&conn_i, &cqe->user_data, sizeof(conn_i));
 
             int type = conn_i.type;
-
-            if (cqe->res == -ENOBUFS) {
+            if (cqe->res == -ENOBUFS)
+            {
                 printf("bufs empty...\n");
                 // io_uring_prep_provide_buffers(sqe, bufs[i], MAX_MESSAGE_LEN, 1, 1337, i);
             }
-
-            if (type == PROV_BUF)
+            else if (type == PROV_BUF)
             {
                 if (cqe->res < 0)
                 {
-                    fprintf(stderr, "cqe->res=%d\n", cqe->res);
-                    return 1;
+                    printf("cqe->res = %d\n", cqe->res);
+                    exit(1);
                 }
             }
             else if (type == ACCEPT)
