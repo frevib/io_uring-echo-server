@@ -133,9 +133,9 @@ int main(int argc, char *argv[])
     while (1)
     {
         io_uring_submit_and_wait(&ring, 1);
-    	struct io_uring_cqe *cqe;
-		unsigned head;
-		unsigned count = 0;
+        struct io_uring_cqe *cqe;
+        unsigned head;
+        unsigned count = 0;
 
         // go through all the cqe's
         io_uring_for_each_cqe(&ring, head, cqe)
