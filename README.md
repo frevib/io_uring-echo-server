@@ -1,7 +1,7 @@
 # io_uring bare minimum echo server
 * uses an event loop created with io_uring
 * uses liburing HEAD https://github.com/axboe/liburing
-* __Linux 5.6 or higher with IORING_FEAT_FAST_POLL and IORING_OP_PROVIDE_BUFFERS required__ (available in https://git.kernel.dk/cgit/linux-block/?h=io_uring-task-poll and https://git.kernel.dk/cgit/linux-block/log/?qt=grep&q=select&h=io_uring-buf-select).
+* __Linux 5.7 or higher with IORING_FEAT_FAST_POLL and IORING_OP_PROVIDE_BUFFERS required__
 
 
 ## Install and run
@@ -21,6 +21,9 @@ https://github.com/frevib/io_uring-echo-server/blob/io-uring-feat-fast-poll/benc
 
 
 ## Versions
+
+### v1.6
+* Use IORING_OP_PROVIDE_BUFFERS
 
 ### v1.5
 * Use IORING_FEAT_FAST_POLL, which increases performance a lot
