@@ -200,7 +200,7 @@ void add_socket_write(struct io_uring *ring, int fd, __u16 bid, size_t message_s
 
 void add_provide_buf(struct io_uring *ring, __u16 bid, unsigned gid) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-    io_uring_prep_provide_buffers(sqe, bufs, MAX_MESSAGE_LEN, 1, gid, bid);
+    io_uring_prep_provide_buffers(sqe, bufs[bid], MAX_MESSAGE_LEN, 1, gid, bid);
 
     conn_info conn_i = {
         .fd = NULL,
