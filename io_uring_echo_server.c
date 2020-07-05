@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
     socklen_t client_len = sizeof(client_addr);
 
     // setup socket
-    int sock_listen_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    int sock_listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     const int val = 1;
     setsockopt(sock_listen_fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 
