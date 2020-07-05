@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
     struct io_uring ring;
     memset(&params, 0, sizeof(params));
 
-    if (io_uring_queue_init_params(1024, &ring, &params) < 0) {
+    if (io_uring_queue_init_params(2048, &ring, &params) < 0) {
         perror("io_uring_init_failed...\n");
         exit(1);
     }
