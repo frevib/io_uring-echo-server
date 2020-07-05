@@ -228,7 +228,7 @@ void add_provide_buf(struct io_uring *ring, __u16 bid, unsigned gid) {
     io_uring_prep_provide_buffers(sqe, bufs[bid], MAX_MESSAGE_LEN, 1, gid, bid);
 
     conn_info conn_i = {
-        .fd = NULL,
+        .fd = 0,
         .type = PROV_BUF,
     };
     memcpy(&sqe->user_data, &conn_i, sizeof(conn_i));
