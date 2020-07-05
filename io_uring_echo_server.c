@@ -153,9 +153,13 @@ int main(int argc, char *argv[]) {
                 }
             } else if (type == ACCEPT) {
                 int sock_conn_fd = cqe->res;
+                if (sock_conn_fd >= 0) {
+                    add_socket_read(&ring, sock_conn_fd, group_id, MAX_MESSAGE_LEN, IOSQE_BUFFER_SELECT);
+                } else if (cqe->res < 0 && cqe->res != -EAGAIN) {
+                    exit(3);
+                }
 
                 // new connected client; read data from socket and re-add accept to monitor for new connections
-                add_socket_read(&ring, sock_conn_fd, group_id, MAX_MESSAGE_LEN, IOSQE_BUFFER_SELECT);
                 add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, 0);
             } else if (type == READ) {
                 int bytes_read = cqe->res;
