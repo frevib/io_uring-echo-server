@@ -144,12 +144,12 @@ int main(int argc, char *argv[]) {
 
             int type = conn_i.type;
             if (cqe->res == -ENOBUFS) {
-                printf("bufs in automatic buffer selection empty, this should not happen...\n");
+                fprintf(stdout, "bufs in automatic buffer selection empty, this should not happen...\n");
+                fflush(stdout);
                 exit(1);
             } else if (type == PROV_BUF) {
                 if (cqe->res < 0) {
-                    printf("cqe->res = %d\n", cqe->res);
-                    exit(1);
+                    exit(2);
                 }
             } else if (type == ACCEPT) {
                 int sock_conn_fd = cqe->res;
@@ -159,8 +159,8 @@ int main(int argc, char *argv[]) {
                 add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, 0);
             } else if (type == READ) {
                 int bytes_read = cqe->res;
-                if (bytes_read <= 0) {
-                    // no bytes available on socket, client must be disconnected
+                if (cqe->res <= 0) {
+                    // connection closed or error
                     shutdown(conn_i.fd, SHUT_RDWR);
                 } else {
                     // bytes have been read into bufs, now add write to socket sqe
@@ -168,10 +168,15 @@ int main(int argc, char *argv[]) {
                     add_socket_write(&ring, conn_i.fd, bid, bytes_read, 0);
                 }
             } else if (type == WRITE) {
+                if (cqe->res < 0) {
+                    exit(4);
+                }
+
                 add_provide_buf(&ring, conn_i.bid, group_id);
                 add_socket_read(&ring, conn_i.fd, group_id, MAX_MESSAGE_LEN, IOSQE_BUFFER_SELECT);
             }
         }
+
         io_uring_cq_advance(&ring, count);
     }
 }
