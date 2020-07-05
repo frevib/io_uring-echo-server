@@ -46,6 +46,7 @@ typedef struct conn_info {
 } conn_info;
 
 char bufs[BUFFERS_COUNT][MAX_MESSAGE_LEN] = {0};
+int group_id = 1337;
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -105,7 +106,6 @@ int main(int argc, char *argv[]) {
     free(probe);
 
     // register buffers for buffer selection
-    unsigned group_id = 1337;
     struct io_uring_sqe *sqe;
     struct io_uring_cqe *cqe;
 
