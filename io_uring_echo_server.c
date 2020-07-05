@@ -11,9 +11,12 @@
 
 #include "liburing.h"
 
-#define MAX_CONNECTIONS 4096
-#define BACKLOG 512
-#define MAX_MESSAGE_LEN 2048
+#define MAX_CONNECTIONS     4096
+#define BACKLOG             512
+#define MAX_MESSAGE_LEN     2048
+
+#define BUFFERS_COUNT       MAX_CONNECTIONS
+
 #define IORING_FEAT_FAST_POLL (1U << 5)
 
 void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len, unsigned flags);
@@ -108,7 +111,7 @@ int main(int argc, char *argv[]) {
     struct io_uring_cqe *cqe;
 
     sqe = io_uring_get_sqe(&ring);
-    io_uring_prep_provide_buffers(sqe, bufs, MAX_MESSAGE_LEN, buf_amount, group_id, 0);
+    io_uring_prep_provide_buffers(sqe, bufs, MAX_MESSAGE_LEN, BUFFERS_COUNT, group_id, 0);
 
     io_uring_submit(&ring);
     io_uring_wait_cqe(&ring, &cqe);
