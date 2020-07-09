@@ -149,8 +149,6 @@ int main(int argc, char *argv[]) {
                 int sock_conn_fd = cqe->res;
                 if (sock_conn_fd >= 0) {
                     add_socket_read(&ring, sock_conn_fd, group_id, MAX_MESSAGE_LEN, IOSQE_BUFFER_SELECT);
-                } else if (cqe->res < 0 && cqe->res != -EAGAIN) {
-                    exit(3);
                 }
 
                 // new connected client; read data from socket and re-add accept to monitor for new connections
@@ -166,10 +164,6 @@ int main(int argc, char *argv[]) {
                     add_socket_write(&ring, conn_i.fd, bid, bytes_read, 0);
                 }
             } else if (type == WRITE) {
-                if (cqe->res < 0) {
-                    exit(4);
-                }
-
                 add_provide_buf(&ring, conn_i.bid, group_id);
                 add_socket_read(&ring, conn_i.fd, group_id, MAX_MESSAGE_LEN, IOSQE_BUFFER_SELECT);
             }
