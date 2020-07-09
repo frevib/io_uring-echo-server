@@ -136,12 +136,6 @@ int main(int argc, char *argv[]) {
             struct conn_info conn_i;
             memcpy(&conn_i, &cqe->user_data, sizeof(conn_i));
 
-            if (cqe->res != -EAGAIN && cqe->res != -ECONNRESET && cqe->res < 0) {
-                fprintf(stdout, "[CQE][%s] cqe->res = %d, cqe->flags >> 16 = %d, cqe->flags >> 16 = %d\n",
-                        OPS_NAMES[conn_i.type], cqe->res, cqe->flags >> 16, cqe->flags & 0xFFFF);
-                fflush(stdout);
-            }
-
             int type = conn_i.type;
             if (cqe->res == -ENOBUFS) {
                 fprintf(stdout, "bufs in automatic buffer selection empty, this should not happen...\n");
