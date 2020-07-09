@@ -25,18 +25,10 @@ void add_socket_write(struct io_uring *ring, int fd, __u16 bid, size_t size, uns
 void add_provide_buf(struct io_uring *ring, __u16 bid, unsigned gid);
 
 enum {
-    ACCEPT = 1,
-    READ = 2,
-    WRITE = 3,
-    PROV_BUF = 4,
-};
-
-char* OPS_NAMES[] = {
-        "UNKNOWN",
-        "ACCEPT",
-        "READ",
-        "WRITE",
-        "PROV_BUF",
+    ACCEPT,
+    READ,
+    WRITE,
+    PROV_BUF,
 };
 
 typedef struct conn_info {
