@@ -143,7 +143,8 @@ int main(int argc, char *argv[]) {
                 exit(1);
             } else if (type == PROV_BUF) {
                 if (cqe->res < 0) {
-                    exit(2);
+                    printf("cqe->res = %d\n", cqe->res);
+                    exit(1);
                 }
             } else if (type == ACCEPT) {
                 int sock_conn_fd = cqe->res;
