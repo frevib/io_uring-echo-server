@@ -14,10 +14,7 @@
 #define MAX_CONNECTIONS     4096
 #define BACKLOG             512
 #define MAX_MESSAGE_LEN     2048
-
 #define BUFFERS_COUNT       MAX_CONNECTIONS
-
-#define IORING_FEAT_FAST_POLL (1U << 5)
 
 void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len, unsigned flags);
 void add_socket_read(struct io_uring *ring, int fd, unsigned gid, size_t size, unsigned flags);
@@ -140,6 +137,7 @@ int main(int argc, char *argv[]) {
                 }
             } else if (type == ACCEPT) {
                 int sock_conn_fd = cqe->res;
+                // only read when there is no error, >= 0
                 if (sock_conn_fd >= 0) {
                     add_socket_read(&ring, sock_conn_fd, group_id, MAX_MESSAGE_LEN, IOSQE_BUFFER_SELECT);
                 }
@@ -157,7 +155,9 @@ int main(int argc, char *argv[]) {
                     add_socket_write(&ring, conn_i.fd, bid, bytes_read, 0);
                 }
             } else if (type == WRITE) {
+                // write has been completed, first re-add the buffer
                 add_provide_buf(&ring, conn_i.bid, group_id);
+                // add a new read for the existing connection
                 add_socket_read(&ring, conn_i.fd, group_id, MAX_MESSAGE_LEN, IOSQE_BUFFER_SELECT);
             }
         }
