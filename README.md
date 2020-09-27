@@ -15,7 +15,7 @@
 https://github.com/frevib/epoll-echo-server
 
 
-## Benchmarks
+## Benchmarks (without buffer selection)
 https://github.com/frevib/io_uring-echo-server/blob/io-uring-feat-fast-poll/benchmarks/benchmarks.md
 
 
