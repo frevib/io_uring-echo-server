@@ -5,7 +5,18 @@
 
 
 ## Install and run
+First install liburing:
+
+`git clone https://github.com/axboe/liburing`
+
+`./configure`
+
 `make liburing`
+
+
+Then install io_uring_echo_server:
+
+`git clone https://github.com/frevib/io_uring-echo-server.git`
 
 `make io_uring_echo_server`
 
@@ -21,6 +32,9 @@ https://github.com/frevib/io_uring-echo-server/blob/io-uring-feat-fast-poll/benc
 
 
 ## Versions
+
+### v1.7
+* Use latest liburing from https://github.com/axboe/liburing
 
 ### v1.6
 * Use IORING_OP_PROVIDE_BUFFERS
