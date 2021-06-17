@@ -5,16 +5,18 @@
 
 
 ## Install and run
-First install liburing:
+#### First install the latest liburing:
 
 `git clone https://github.com/axboe/liburing`
 
 `./configure`
 
-`make liburing`
+`make`
+
+`make install`
 
 
-Then install io_uring_echo_server:
+#### Then install io_uring_echo_server:
 
 `git clone https://github.com/frevib/io_uring-echo-server.git`
 
