@@ -1,6 +1,6 @@
 # io_uring bare minimum echo server
 * uses an event loop created with io_uring
-* uses liburing HEAD https://github.com/axboe/liburing
+* uses liburing https://github.com/axboe/liburing
 * __Linux 5.7 or higher with IORING_FEAT_FAST_POLL and IORING_OP_PROVIDE_BUFFERS required__
 
 
