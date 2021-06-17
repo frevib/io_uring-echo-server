@@ -146,12 +146,14 @@ int main(int argc, char *argv[]) {
                 add_accept(&ring, sock_listen_fd, (struct sockaddr *)&client_addr, &client_len, 0);
             } else if (type == READ) {
                 int bytes_read = cqe->res;
+                int bid = cqe->flags >> 16;
                 if (cqe->res <= 0) {
+                    // read failed, re-add the buffer
+                    add_provide_buf(&ring, bid, group_id);
                     // connection closed or error
                     shutdown(conn_i.fd, SHUT_RDWR);
                 } else {
                     // bytes have been read into bufs, now add write to socket sqe
-                    int bid = cqe->flags >> 16;
                     add_socket_write(&ring, conn_i.fd, bid, bytes_read, 0);
                 }
             } else if (type == WRITE) {
