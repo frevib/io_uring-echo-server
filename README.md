@@ -16,7 +16,7 @@
 `make install`
 
 
-#### Then install io_uring_echo_server:
+#### Then install io_uring-echo-server:
 
 `git clone https://github.com/frevib/io_uring-echo-server.git`
 
