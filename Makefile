@@ -12,4 +12,4 @@ liburing:
 	+$(MAKE) -C ./liburing
 
 io_uring_echo_server:
-	$(CC) io_uring_echo_server.c -o ./io_uring_echo_server -I./liburing/src/include/ -L./liburing/src/  ${CCFLAGS}
+	$(CC) io_uring_echo_server.c -o ./io_uring_echo_server  ${CCFLAGS}
