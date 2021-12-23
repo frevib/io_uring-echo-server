@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
                     // read failed, re-add the buffer
                     add_provide_buf(&ring, bid, group_id);
                     // connection closed or error
-                    shutdown(conn_i.fd, SHUT_RDWR);
+                    close(conn_i.fd);
                 } else {
                     // bytes have been read into bufs, now add write to socket sqe
                     add_socket_write(&ring, conn_i.fd, bid, bytes_read, 0);
