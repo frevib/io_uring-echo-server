@@ -15,6 +15,8 @@
 #define BACKLOG             512
 #define MAX_MESSAGE_LEN     2048
 #define BUFFERS_COUNT       MAX_CONNECTIONS
+#define RING_SIZE           2048
+#define BATCH_SIZE          RING_SIZE
 
 void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len, unsigned flags);
 void add_socket_read(struct io_uring *ring, int fd, unsigned gid, size_t size, unsigned flags);
@@ -74,7 +76,7 @@ int main(int argc, char *argv[]) {
     struct io_uring ring;
     memset(&params, 0, sizeof(params));
 
-    if (io_uring_queue_init_params(2048, &ring, &params) < 0) {
+    if (io_uring_queue_init_params(RING_SIZE, &ring, &params) < 0) {
         perror("io_uring_init_failed...\n");
         exit(1);
     }
@@ -114,15 +116,19 @@ int main(int argc, char *argv[]) {
 
     // start event loop
     while (1) {
+        struct io_uring_cqe *cqes[BATCH_SIZE];
+        unsigned count;
+
         io_uring_submit_and_wait(&ring, 1);
-        struct io_uring_cqe *cqe;
-        unsigned head;
-        unsigned count = 0;
+
+        count = io_uring_peek_batch_cqe(&ring, cqes, BATCH_SIZE);
 
         // go through all CQEs
-        io_uring_for_each_cqe(&ring, head, cqe) {
-            ++count;
+        for (unsigned i = 0; i < count; i++) {
+            struct io_uring_cqe *cqe;
             struct conn_info conn_i;
+
+            cqe = cqes[i];
             memcpy(&conn_i, &cqe->user_data, sizeof(conn_i));
 
             int type = conn_i.type;
