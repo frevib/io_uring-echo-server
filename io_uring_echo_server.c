@@ -15,6 +15,7 @@
 #define BACKLOG             512
 #define MAX_MESSAGE_LEN     2048
 #define BUFFERS_COUNT       MAX_CONNECTIONS
+#define RING_SIZE           2048
 
 void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len, unsigned flags);
 void add_socket_read(struct io_uring *ring, int fd, unsigned gid, size_t size, unsigned flags);
@@ -74,7 +75,7 @@ int main(int argc, char *argv[]) {
     struct io_uring ring;
     memset(&params, 0, sizeof(params));
 
-    if (io_uring_queue_init_params(2048, &ring, &params) < 0) {
+    if (io_uring_queue_init_params(RING_SIZE, &ring, &params) < 0) {
         perror("io_uring_init_failed...\n");
         exit(1);
     }
