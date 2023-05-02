@@ -92,7 +92,8 @@ int main(int argc, char *argv[]) {
         printf("Buffer select not supported, skipping...\n");
         exit(0);
     }
-    free(probe);
+    
+    io_uring_free_probe(probe);
 
     // register buffers for buffer selection
     struct io_uring_sqe *sqe;
